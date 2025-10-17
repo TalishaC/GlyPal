@@ -8,6 +8,7 @@ import {
   insertMealPlanSchema,
   insertShoppingListSchema,
 } from "@shared/schema";
+import { searchRecipes, getRecipeDetails, extractNutritionInfo, isT2DOptimized } from "./spoonacular";
 
 // Utility for error responses
 function handleError(res: Response, error: unknown, defaultMessage: string) {
@@ -212,6 +213,72 @@ export function registerRoutes(app: Express) {
       res.status(204).send();
     } catch (error) {
       handleError(res, error, "Failed to delete recipe");
+    }
+  });
+
+  // Search recipes from Spoonacular API
+  app.get("/api/recipes/search/spoonacular", async (req: Request, res: Response) => {
+    try {
+      const query = (req.query.query as string) || "diabetes friendly";
+      const maxCarbs = req.query.maxCarbs ? parseInt(req.query.maxCarbs as string) : 46;
+      const minProtein = req.query.minProtein ? parseInt(req.query.minProtein as string) : 14;
+      const minFiber = req.query.minFiber ? parseInt(req.query.minFiber as string) : 2;
+      const number = req.query.number ? parseInt(req.query.number as string) : 12;
+
+      const results = await searchRecipes(query, {
+        maxCarbs,
+        minProtein,
+        minFiber,
+        number,
+      });
+
+      const formattedRecipes = results.results.map((recipe) => {
+        const nutrition = extractNutritionInfo(recipe);
+        return {
+          id: String(recipe.id),
+          spoonacularId: recipe.id,
+          title: recipe.title,
+          image: recipe.image,
+          readyInMinutes: recipe.readyInMinutes || 30,
+          servings: recipe.servings || 2,
+          carbs: nutrition.carbs,
+          protein: nutrition.protein,
+          fiber: nutrition.fiber,
+          saturatedFat: nutrition.saturatedFat,
+          isT2DOptimized: isT2DOptimized(nutrition),
+        };
+      });
+
+      res.json(formattedRecipes);
+    } catch (error) {
+      handleError(res, error, "Failed to search recipes from Spoonacular");
+    }
+  });
+
+  // Get recipe details from Spoonacular
+  app.get("/api/recipes/spoonacular/:id", async (req: Request, res: Response) => {
+    try {
+      const spoonacularId = parseInt(req.params.id);
+      const recipe = await getRecipeDetails(spoonacularId);
+      const nutrition = extractNutritionInfo(recipe);
+
+      const formattedRecipe = {
+        id: String(recipe.id),
+        spoonacularId: recipe.id,
+        title: recipe.title,
+        image: recipe.image,
+        readyInMinutes: recipe.readyInMinutes || 30,
+        servings: recipe.servings || 2,
+        carbs: nutrition.carbs,
+        protein: nutrition.protein,
+        fiber: nutrition.fiber,
+        saturatedFat: nutrition.saturatedFat,
+        isT2DOptimized: isT2DOptimized(nutrition),
+      };
+
+      res.json(formattedRecipe);
+    } catch (error) {
+      handleError(res, error, "Failed to fetch recipe from Spoonacular");
     }
   });
 
