@@ -1,0 +1,157 @@
+Developer Spec Prompt: GlyPal — T2D & Pre-Diabetes Meal Planner
+Replit • Supabase • Spoonacular • Nutritionix • Chicory • Manual BG • Prescriptions as reminders
+Positioning
+GlyPal is a wellness app (not a medical device) that plans weekly menus for people with type 2 diabetes or pre-diabetes, logs BG manually, analyzes nutrition via Nutritionix, and makes ingredients shoppable via Chicory. It supports prescription reminders and produces reports users can download, print, or email. No device integrations.
+Audience & Languages
+Primary: T2D and pre-diabetes, with special consideration for seniors.
+Spanish: Build as a single app with i18n (English default; Spanish locale toggle). Keep content parity; no separate codebase. Use ICU message catalogs; store recipe fields with localized strings when available.
+Plans & Monetization
+BASIC (Free): core planner, basic recipe packs, manual BG logging/reminders, shopping cart, ready-made meals catalog.
+PREMIUM ($10/mo): everything in Basic + upgraded recipe packs, user recipe uploads, downloadable reports (PDF).
+PRO ($20/mo): everything in Premium + barcode scan, plate scan, pantry scan, restaurant menu scan.
+Ads: Chicory placements only. No other ads.
+Onboarding
+Birth year (≥65 → senior defaults on), gender, height, weight, activity level, goal (weight loss, energy, meal timing, grocery simplicity).
+Allergies/intolerances, dietary pattern, cuisines, cooking skill, time per meal, budget tier (Budget, Moderate, Foodie).
+BG thresholds: user-specific with defaults: Low <70 mg/dL, High >180 mg/dL, Urgent >250 mg/dL.
+Prescriptions: drug, dose, schedule; reminders only.
+Nutrition Rules & Targets
+Per-user guardrails computed from inputs (gender, weight, height, age, activity, goal) using Mifflin-St Jeor for calories.
+Default recipe screeners per serving: Carbs <46 g, Fiber >2 g, Protein >14 g, Sat fat <11 g.
+Carb exchanges: base 15 g; editable per user.
+If a recipe violates guardrails, mark as soft warning with suggested swaps; users can relax rules in settings.
+Macro targets: use your referenced policy; fallback if unspecified = 35% carbs / 30% protein / 35% fat. Store percentages per user.
+Allergens & Cross-contamination
+Hard-exclude declared allergens.
+Allow auto-substitutions only if carb-exchange parity is maintained.
+Cross-contamination flags: tag ingredients/recipes with may_contain, shared_equipment, shared_facility. If user toggles “strict,” hide those too.
+BG Logging & Adaptation
+Manual BG only (keyboard or voice).
+No adaptive meal changes from BG for MVP (per your instruction).
+Use BG solely for rings, reports, and nudges (“consider lower-GL options next week”); never prescribe.
+Prescriptions (Reminders Only)
+Channel: in-app notifications (PWA push if supported).
+UX: one-tap “taken.” Show med timeline on dashboard. Track adherence.
+Recipe Sources & Editing
+MVP sources:
+CMS recipes you enter/edit
+Spoonacular import (attribution required)
+User uploads (Premium+)
+URL scraping (Premium+)
+Nutrition flow: always recompute via Nutritionix; if conflicts with source, Nutritionix wins.
+Editor “T2D-optimize” tools: swap refined→whole grains, cut sat fat, boost legumes, shrink portions, add veg.
+Hard-coded suggestions library (e.g., wheat flour → almond flour; cream → coconut/almond/cashew milk; white rice → cauliflower rice; sour cream → Greek yogurt).
+Scaling: multiply/divide servings/yield with unit conversion and rounding; recompute macros and exchanges.
+Shopping & Chicory
+Budget modes:
+Budget: cheapest viable items; assume $2.50/meal
+Moderate: balanced; $5/meal
+Foodie: premium; $10/meal
+Show these clarifiers during onboarding.
+Retailer prefs: user chooses per trip. For out-of-stock, ask each time to keep within T2D parameters.
+Build cart via Chicory deep links from consolidated shopping list.
+Ready-made Meals (catalog only)
+Vendor catalogs normalized as read-only “recipes” with immutable nutrition; can be added to plan and carted through Chicory where supported.
+User Uploads (Premium+)
+Required: title, servings, structured ingredients with units, at least one photo.
+Accept free-text then parse to structure; user verifies parsed fields.
+Private by default. Before planner use, require the user to confirm macros after Nutritionix analysis.
+Dashboard (Activity Rings)
+Calories ring: consumed vs target.
+BG Time-in-Range ring: minutes in range / total minutes (daily goal default 70% TIR).
+Macros ring(s): progress toward daily targets for protein, fat, carbs (toggle or mini-rings).
+Drilldowns: daily BG chart, macro breakdown, meal adherence, prescription timeline.
+Reports (Basic → on-screen; Premium+ → downloadable)
+User PDF: weekly summary with TIR by meal, calories/macros, adherence, top stabilizers/spikers.
+Share options: download, print, email.
+Clinician: reports-only; no dashboard in MVP.
+Accessibility & Offline
+Senior defaults (≥65): large text + voice-first by default; text-to-speech for recipes.
+Offline: view plan, log BG/meds, add meal photos. Cart building is online-only; if available offline later, great.
+Roadmap (gated to PRO; stub now)
+Barcode scanner (Nutritionix UPC)
+Pantry scan (vision)
+Plate scan (meal photo → macro estimate)
+Restaurant menu/plate scan (vision + Nutritionix)
+No special image-privacy constraints requested; still store with user consent and allow deletion.
+Integrations
+Supabase: Postgres, Auth, RLS, Storage (images).
+Spoonacular: recipe search/import + attribution.
+Nutritionix: ingredient parsing + macro totals; later UPC for barcode.
+Chicory: cart build and retailer deep links.
+Data Model (Supabase/Postgres, high-level)
+users(id, email, birth_year, locale, is_senior_default, units, budget_tier, ...)
+settings(user_id, carb_exchange_g, bg_low, bg_high, bg_urgent, macro_split_json, calorie_target_kcal, guardrails_json)
+prescriptions(id, user_id, drug, dose, schedule_time, notes)
+prescription_logs(id, prescription_id, taken_at)
+bg_readings(id, user_id, value_mgdl, source, taken_at)
+recipes(id, title, desc, servings, photo_url, origin_type enum(cms|api|user|scraper|vendor), carbs_g, fiber_g, protein_g, fat_g, sat_fat_g, sodium_mg, gly_load, rules_ok bool, allergens_json, cross_contam_json, editor_notes, published bool)
+ingredients(id, name, canonical_unit, allergens_json)
+recipe_ingredients(recipe_id, ingredient_id, qty, unit, prep, is_optional)
+tags(id, name, type) • recipe_tags(recipe_id, tag_id)
+user_recipes(user_id, recipe_id)
+meal_plans(id, user_id, week_start) • plan_items(plan_id, day, meal_type, recipe_id, servings)
+swaps(id, user_id, plan_item_id, from_ingredient_id, to_ingredient_id, exchange_delta, macro_delta_json, applied_at)
+shopping_items(id, plan_id, ingredient_id, qty, unit, chicory_sku, budget_flag)
+ratings(user_id, recipe_id, stars, repeat_pref)
+reports(id, user_id, week_start, pdf_url)
+audit_logs(id, actor_id, role, entity, entity_id, action, before_json, after_json, at)
+Indexes: bg_readings(user_id,taken_at), recipes(title), recipe_tags(recipe_id,tag_id), plan_items(plan_id,day).
+RLS Policy (who can see/edit what)
+User-owned tables (bg_readings, prescriptions, prescription_logs, meal_plans, plan_items, ratings, reports, settings, user_recipes): user_id = auth.uid() for SELECT/INSERT/UPDATE/DELETE.
+CMS recipes (recipes with origin_type='cms'): editor/admin only; users SELECT only for published=true.
+API/Scraper/Vendor recipes: read-only to users when published=true; edit by editor/admin.
+Ingredients/tags: read-only to users; editors/admins manage.
+Audit logs: admin read; system write.
+No public recipe visibility beyond published; no shared/global edits by users.
+Versioning & Audit
+Full version history for recipes and plan changes with diffs.
+Every CMS edit writes an audit_logs entry with before/after JSON.
+Keep last N versions on hot storage; archive older to cold storage if needed.
+Backups, Retention, Privacy
+BG and med logs retention: 90 days by default (extendable by user).
+GDPR/CCPA “delete my data”: implement an in-app request that:
+Queues a deletion job,
+Soft-disables account immediately,
+Hard-deletes PII and user-owned rows within 30 days,
+Purges media from Storage,
+Leaves anonymized analytics if strictly non-identifying.
+Export-my-data (JSON + PDF reports) before deletion.
+Attribution & Licensing
+Display “Source: Spoonacular” with link to the canonical recipe page on any imported recipe and in PDF exports.
+For scraping (Premium+), store and show canonical URL and any license text the site exposes.
+Safety & Disclaimers (exact copy)
+Onboarding: “GlyPal provides nutrition planning and educational content for adults with type 2 diabetes or pre-diabetes. It does not diagnose, treat, or prescribe. Always follow your clinician’s advice.”
+BG screen: “BG entries are user-reported. Recommendations are educational and not medical guidance.”
+Reports footer: “Informational only. Not a substitute for professional medical advice, diagnosis, or treatment.”
+UX Details
+Senior defaults: large type scale, high contrast, clear focus states, voice input and text-to-speech for recipes.
+Reminders: BG and meds anchored to meal times; snooze allowed.
+User uploads: enforce servings, units, one photo; free-text → parse → user verifies macros before use.
+Chicory Cart & Budget Logic
+Show estimated weekly budget using meal count × $/meal per mode.
+Map ingredients to products; if out-of-stock, ask each time for a substitution to keep within guardrails.
+Generate deep link; track return events if available.
+Normalization Pipeline
+Ingest (CMS/Spoonacular/User/Scraper)
+Parse ingredients → Nutritionix totals
+Enforce guardrails → suggest substitutions if needed
+Tagging (cuisine/time/equipment/health/occasion/budget)
+Publish to planner if rules_ok or accepted with warning
+Acceptance Criteria (MVP)
+Replit app with Supabase schema + RLS deployed.
+Onboarding with goals, thresholds, allergens, preferences, budget tier.
+Manual BG logging; prescription reminders; adherence timeline.
+Recipe ingestion (CMS + Spoonacular), user uploads (Premium+), URL scraping (Premium+); Nutritionix normalization; rule checks; T2D-optimize editor tools.
+Planner creates 7-day, allergen-safe menus; scaling; carb-exchange-preserving swaps.
+Shopping list → Chicory cart; budget modes and per-trip retailer selection.
+Dashboard rings for calories, TIR, macros; drilldowns.
+Weekly PDF report; email/print; clinician is reports-only.
+Accessibility defaults for seniors; offline plan view + BG/med/photo logging.
+Versioning + audit logs; attributions shown; disclaimers present.
+Data export and delete-my-data flows; 90-day retention.
+Engineering Notes (Replit + Supabase)
+Keep API adapters thin: adapters/spoonacular, adapters/nutritionix, adapters/chicory.
+Cache Nutritionix ingredient signatures; retry with backoff.
+Background jobs (cron): report generation, plan rotation, reminder dispatch, deletion queue.
+Feature flags for PRO scanners; stub endpoints that return NOT_ENABLED.
