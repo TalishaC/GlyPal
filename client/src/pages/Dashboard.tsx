@@ -1,4 +1,5 @@
 import { ActivityRing } from "@/components/ActivityRing";
+import { ConcentricRings } from "@/components/ConcentricRings";
 import { BGReadingCard } from "@/components/BGReadingCard";
 import { PrescriptionCard } from "@/components/PrescriptionCard";
 import { Card } from "@/components/ui/card";
@@ -21,6 +22,13 @@ export default function Dashboard() {
     { id: "2", drug: "Glipizide", dose: "5mg", scheduleTime: "6:00 PM", isTaken: true },
   ];
 
+  const macroRings = [
+    { label: "Carbs", value: 180, target: 225, color: "hsl(0 70% 50%)" }, // Red
+    { label: "Protein", value: 95, target: 120, color: "hsl(25 85% 55%)" }, // Orange
+    { label: "Fat", value: 52, target: 65, color: "hsl(45 90% 55%)" }, // Yellow
+    { label: "Fiber", value: 28, target: 35, color: "hsl(145 60% 45%)" }, // Green
+  ];
+
   return (
     <div className="space-y-8">
       <div>
@@ -41,12 +49,7 @@ export default function Dashboard() {
           target={100} 
           color="hsl(var(--chart-2))" 
         />
-        <ActivityRing 
-          label={t("macros")} 
-          value={85} 
-          target={100} 
-          color="hsl(var(--chart-4))" 
-        />
+        <ConcentricRings rings={macroRings} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
