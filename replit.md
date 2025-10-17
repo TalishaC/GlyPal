@@ -13,6 +13,18 @@ GlyPal is a wellness application designed for adults with type 2 diabetes and pr
 - Bilingual support (English/Spanish via i18n)
 - Three-tier monetization: Basic (free), Premium ($10/mo), Pro ($20/mo)
 
+## Recent Changes
+
+**October 17, 2025 - Comprehensive Onboarding & Nutrition Calculation System:**
+- ✅ Refactored database schema into separate normalized tables (settings, user_preferences, user_allergies, user_intolerances, user_cuisines, user_cross_contam)
+- ✅ Implemented BMR/TDEE calculation engine using Mifflin-St Jeor formula with activity level multipliers (1.2-1.9)
+- ✅ Enhanced onboarding wizard to 7 comprehensive steps collecting: birth year, units (imperial/metric), locale, sex at birth, height/weight, activity level, weight goal, goal intensity, dietary pattern, allergies, intolerances, cross-contamination preferences, favorite cuisines, time per meal, cooking skill, budget tier, carb exchange, and BG thresholds
+- ✅ Created POST /api/me/onboarding endpoint that calculates personalized calorie targets, macro splits, and guardrails based on user profile
+- ✅ Implemented GET /api/me endpoint to fetch complete user profile with all settings and preferences
+- ✅ Updated Dashboard to use calculated calorie targets and user-specific BG thresholds instead of hardcoded values
+- ✅ Added senior defaults logic (age ≥65 automatically sets is_senior_default flag for future UI enhancements)
+- ✅ End-to-end tested complete signup → onboarding → dashboard flow with calculated nutrition targets
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -37,7 +49,19 @@ Preferred communication style: Simple, everyday language.
 
 **Server Framework:** Express.js with TypeScript running on Node.js, configured for both development (with Vite middleware) and production builds via esbuild.
 
-**API Structure:** RESTful API design with all routes prefixed with `/api`. Currently implements a minimal storage interface pattern that can be extended for CRUD operations.
+**API Structure:** RESTful API design with all routes prefixed with `/api`. Key endpoints include:
+- `POST /api/auth/signup` - User registration
+- `POST /api/auth/login` - User authentication
+- `POST /api/me/onboarding` - Comprehensive onboarding with BMR/TDEE calculation and personalized nutrition targets
+- `GET /api/me` - Fetch complete user profile with settings, preferences, allergies, intolerances, cuisines, and cross-contamination preferences
+- `GET/POST /api/bg-readings` - Blood glucose reading CRUD operations
+- `GET /api/bg-readings/stats` - BG statistics (average, time-in-range, total readings)
+- `GET/POST/PATCH/DELETE /api/prescriptions` - Prescription management
+- `POST /api/prescriptions/:id/log` - Mark prescription as taken
+- `GET /api/recipes` - Recipe discovery with Spoonacular integration
+- `GET /api/recipes/search` - Search recipes with T2D optimization filtering
+- `GET/POST/DELETE /api/meal-plans` - Weekly meal planning
+- `GET/POST/PATCH/DELETE /api/shopping-lists` - Shopping list management
 
 **Storage Layer:** Database storage (DbStorage) implemented using Supabase/PostgreSQL via Drizzle ORM. Handles all CRUD operations for users, BG readings, prescriptions, recipes, meal plans, and shopping lists.
 
@@ -47,7 +71,20 @@ Preferred communication style: Simple, everyday language.
 
 **ORM:** Drizzle ORM configured for PostgreSQL with schema definitions and migrations support. Connection configured via Neon serverless driver.
 
-**Database Schema:** Currently defines a users table with UUID primary keys, username, and password fields. Schema is extensible for additional entities (recipes, BG readings, prescriptions, meal plans, shopping lists).
+**Database Schema:** Comprehensive multi-table schema with:
+- **users:** Core user table with username, password, locale, birth year, units (imperial/metric), budget tier, senior default flag, and onboarding completion status
+- **settings:** Per-user settings including BG thresholds (low/high/urgent), calorie target (calculated via Mifflin-St Jeor), macro split JSON, guardrails JSON, and goal intensity percentage
+- **user_preferences:** Extended user profile with sex at birth, height/weight, activity level, goal, dietary pattern, time per meal, cooking skill
+- **user_allergies:** Multi-row table for user allergens (hard exclusions)
+- **user_intolerances:** Multi-row table for food intolerances
+- **user_cuisines:** Multi-row table for preferred cuisines
+- **user_cross_contam:** Cross-contamination tolerance flags (may_contain, shared_equipment, shared_facility)
+- **bg_readings:** Blood glucose readings with timestamp and meal context
+- **prescriptions:** Prescription medications with drug name, dose, frequency, and schedule
+- **prescription_logs:** Adherence tracking for prescription taking
+- **recipes:** Recipe database with Spoonacular integration support
+- **meal_plans:** Weekly meal planning with recipe assignments
+- **shopping_lists:** Auto-generated shopping lists from meal plans
 
 **Session Management:** connect-pg-simple configured for PostgreSQL-backed session storage (to be implemented with active database).
 
