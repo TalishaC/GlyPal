@@ -33,8 +33,13 @@ export async function searchRecipes(
     offset?: number;
   } = {}
 ): Promise<SpoonacularSearchResponse> {
+  if (!SPOONACULAR_API_KEY) {
+    console.error("SPOONACULAR_API_KEY is not set");
+    throw new Error("Spoonacular API key is not configured");
+  }
+
   const params = new URLSearchParams({
-    apiKey: SPOONACULAR_API_KEY!,
+    apiKey: SPOONACULAR_API_KEY,
     query,
     addRecipeNutrition: "true",
     number: String(options.number || 10),
@@ -51,15 +56,20 @@ export async function searchRecipes(
     params.append("minFiber", String(options.minFiber));
   }
 
-  const response = await fetch(
-    `${BASE_URL}/recipes/complexSearch?${params.toString()}`
-  );
+  const url = `${BASE_URL}/recipes/complexSearch?${params.toString()}`;
+  console.log("Fetching from Spoonacular:", url.replace(SPOONACULAR_API_KEY, "***"));
+
+  const response = await fetch(url);
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Spoonacular API error:", response.status, errorText);
     throw new Error(`Spoonacular API error: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log("Spoonacular response:", { totalResults: data.totalResults, resultsCount: data.results?.length });
+  return data;
 }
 
 export async function getRecipeDetails(id: number): Promise<SpoonacularRecipe> {

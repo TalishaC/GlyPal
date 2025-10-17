@@ -20,7 +20,7 @@ interface SpoonacularRecipe {
 }
 
 export default function Recipes() {
-  const [searchQuery, setSearchQuery] = useState("diabetes friendly");
+  const [searchQuery, setSearchQuery] = useState("healthy");
 
   const { data: recipes = [], isLoading } = useQuery<SpoonacularRecipe[]>({
     queryKey: ["/api/recipes/search/spoonacular", searchQuery],

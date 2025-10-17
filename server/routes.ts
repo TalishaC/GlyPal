@@ -219,35 +219,38 @@ export function registerRoutes(app: Express) {
   // Search recipes from Spoonacular API
   app.get("/api/recipes/search/spoonacular", async (req: Request, res: Response) => {
     try {
-      const query = (req.query.query as string) || "diabetes friendly";
-      const maxCarbs = req.query.maxCarbs ? parseInt(req.query.maxCarbs as string) : 46;
-      const minProtein = req.query.minProtein ? parseInt(req.query.minProtein as string) : 14;
-      const minFiber = req.query.minFiber ? parseInt(req.query.minFiber as string) : 2;
-      const number = req.query.number ? parseInt(req.query.number as string) : 12;
+      const query = (req.query.query as string) || "healthy";
+      const number = req.query.number ? parseInt(req.query.number as string) : 20;
 
+      // Fetch recipes without strict filters to get more results
       const results = await searchRecipes(query, {
-        maxCarbs,
-        minProtein,
-        minFiber,
         number,
       });
 
-      const formattedRecipes = results.results.map((recipe) => {
-        const nutrition = extractNutritionInfo(recipe);
-        return {
-          id: String(recipe.id),
-          spoonacularId: recipe.id,
-          title: recipe.title,
-          image: recipe.image,
-          readyInMinutes: recipe.readyInMinutes || 30,
-          servings: recipe.servings || 2,
-          carbs: nutrition.carbs,
-          protein: nutrition.protein,
-          fiber: nutrition.fiber,
-          saturatedFat: nutrition.saturatedFat,
-          isT2DOptimized: isT2DOptimized(nutrition),
-        };
-      });
+      // Format and evaluate recipes on our end
+      const formattedRecipes = results.results
+        .map((recipe) => {
+          const nutrition = extractNutritionInfo(recipe);
+          return {
+            id: String(recipe.id),
+            spoonacularId: recipe.id,
+            title: recipe.title,
+            image: recipe.image,
+            readyInMinutes: recipe.readyInMinutes || 30,
+            servings: recipe.servings || 2,
+            carbs: nutrition.carbs,
+            protein: nutrition.protein,
+            fiber: nutrition.fiber,
+            saturatedFat: nutrition.saturatedFat,
+            isT2DOptimized: isT2DOptimized(nutrition),
+          };
+        })
+        // Sort T2D optimized recipes first
+        .sort((a, b) => {
+          if (a.isT2DOptimized && !b.isT2DOptimized) return -1;
+          if (!a.isT2DOptimized && b.isT2DOptimized) return 1;
+          return 0;
+        });
 
       res.json(formattedRecipes);
     } catch (error) {
