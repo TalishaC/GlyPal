@@ -6,50 +6,74 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, TrendingUp } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import type { BGReading, Prescription } from "@shared/schema";
 
-// Temporary test user ID (replace with auth later)
-const TEST_USER_ID = "test-user-1";
-
 export default function Dashboard() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+
+  // Fetch user profile with settings
+  const { data: userProfile } = useQuery({
+    queryKey: ["/api/me", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/me?userId=${user.id}`);
+      if (!res.ok) throw new Error("Failed to fetch user profile");
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
 
   // Fetch BG readings
   const { data: bgReadings = [], isLoading: loadingBGReadings } = useQuery<BGReading[]>({
-    queryKey: ["/api/bg-readings", TEST_USER_ID],
+    queryKey: ["/api/bg-readings", user?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/bg-readings?userId=${TEST_USER_ID}&limit=3`);
+      if (!user?.id) return [];
+      const res = await fetch(`/api/bg-readings?userId=${user.id}&limit=3`);
       if (!res.ok) throw new Error("Failed to fetch BG readings");
       return res.json();
     },
+    enabled: !!user?.id,
   });
 
   // Fetch BG stats
   const { data: bgStats } = useQuery({
-    queryKey: ["/api/bg-readings/stats", TEST_USER_ID],
+    queryKey: ["/api/bg-readings/stats", user?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/bg-readings/stats?userId=${TEST_USER_ID}&days=7`);
+      if (!user?.id) return null;
+      const res = await fetch(`/api/bg-readings/stats?userId=${user.id}&days=7`);
       if (!res.ok) throw new Error("Failed to fetch BG stats");
       return res.json();
     },
+    enabled: !!user?.id,
   });
 
   // Fetch prescriptions
   const { data: prescriptions = [], isLoading: loadingPrescriptions } = useQuery<Prescription[]>({
-    queryKey: ["/api/prescriptions", TEST_USER_ID],
+    queryKey: ["/api/prescriptions", user?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/prescriptions?userId=${TEST_USER_ID}`);
+      if (!user?.id) return [];
+      const res = await fetch(`/api/prescriptions?userId=${user.id}`);
       if (!res.ok) throw new Error("Failed to fetch prescriptions");
       return res.json();
     },
+    enabled: !!user?.id,
   });
 
-  // Helper to determine BG status
+  // Extract settings for thresholds and targets
+  const bgLow = userProfile?.settings?.bgLow ?? 70;
+  const bgHigh = userProfile?.settings?.bgHigh ?? 180;
+  const bgUrgent = userProfile?.settings?.bgUrgent ?? 250;
+  const calorieTarget = userProfile?.settings?.calorieTargetKcal ?? 2000;
+  const macroSplit = userProfile?.settings?.macroSplitJson ?? { carb_pct: 0.35, protein_pct: 0.30, fat_pct: 0.35 };
+
+  // Helper to determine BG status using user's thresholds
   const getBGStatus = (value: number): "in-range" | "high" | "low" | "urgent" => {
-    if (value >= 250) return "urgent";
-    if (value > 180) return "high";
-    if (value < 70) return "low";
+    if (value >= bgUrgent) return "urgent";
+    if (value > bgHigh) return "high";
+    if (value < bgLow) return "low";
     return "in-range";
   };
 
@@ -62,11 +86,17 @@ export default function Dashboard() {
     return isToday ? `Today, ${timeStr}` : `${date.toLocaleDateString()}, ${timeStr}`;
   };
 
+  // Calculate macro targets based on calorie target and macro split
+  const carbsTarget = Math.round((calorieTarget * macroSplit.carb_pct) / 4); // 4 cal/g
+  const proteinTarget = Math.round((calorieTarget * macroSplit.protein_pct) / 4); // 4 cal/g
+  const fatTarget = Math.round((calorieTarget * macroSplit.fat_pct) / 9); // 9 cal/g
+  const fiberTarget = 35; // Standard fiber goal
+
   const macroRings = [
-    { label: "Carbs", value: 180, target: 225, color: "hsl(0 70% 50%)" }, // Red
-    { label: "Protein", value: 95, target: 120, color: "hsl(25 85% 55%)" }, // Orange
-    { label: "Fat", value: 52, target: 65, color: "hsl(45 90% 55%)" }, // Yellow
-    { label: "Fiber", value: 28, target: 35, color: "hsl(145 60% 45%)" }, // Green
+    { label: "Carbs", value: 0, target: carbsTarget, color: "hsl(0 70% 50%)" }, // Red
+    { label: "Protein", value: 0, target: proteinTarget, color: "hsl(25 85% 55%)" }, // Orange
+    { label: "Fat", value: 0, target: fatTarget, color: "hsl(45 90% 55%)" }, // Yellow
+    { label: "Fiber", value: 0, target: fiberTarget, color: "hsl(145 60% 45%)" }, // Green
   ];
 
   return (
@@ -79,13 +109,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <ActivityRing 
           label={t("calories")} 
-          value={1650} 
-          target={2000} 
+          value={0} 
+          target={calorieTarget} 
           color="hsl(var(--chart-1))" 
         />
         <ActivityRing 
           label={t("bgTimeInRange")} 
-          value={75} 
+          value={bgStats?.timeInRange ?? 0} 
           target={100} 
           color="hsl(var(--chart-2))" 
         />
