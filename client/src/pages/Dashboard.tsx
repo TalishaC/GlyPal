@@ -6,21 +6,61 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, TrendingUp } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useQuery } from "@tanstack/react-query";
+import type { BGReading, Prescription } from "@shared/schema";
+
+// Temporary test user ID (replace with auth later)
+const TEST_USER_ID = "test-user-1";
 
 export default function Dashboard() {
   const { t } = useLanguage();
 
-  // Todo: remove mock data
-  const mockBGReadings = [
-    { id: "1", value: 98, status: "in-range" as const, timestamp: "Today, 8:30 AM", mealContext: "Before breakfast" },
-    { id: "2", value: 145, status: "high" as const, timestamp: "Today, 12:45 PM", mealContext: "After lunch" },
-    { id: "3", value: 112, status: "in-range" as const, timestamp: "Today, 6:15 PM" },
-  ];
+  // Fetch BG readings
+  const { data: bgReadings = [], isLoading: loadingBGReadings } = useQuery<BGReading[]>({
+    queryKey: ["/api/bg-readings", TEST_USER_ID],
+    queryFn: async () => {
+      const res = await fetch(`/api/bg-readings?userId=${TEST_USER_ID}&limit=3`);
+      if (!res.ok) throw new Error("Failed to fetch BG readings");
+      return res.json();
+    },
+  });
 
-  const mockPrescriptions = [
-    { id: "1", drug: "Metformin", dose: "500mg", scheduleTime: "8:00 AM" },
-    { id: "2", drug: "Glipizide", dose: "5mg", scheduleTime: "6:00 PM", isTaken: true },
-  ];
+  // Fetch BG stats
+  const { data: bgStats } = useQuery({
+    queryKey: ["/api/bg-readings/stats", TEST_USER_ID],
+    queryFn: async () => {
+      const res = await fetch(`/api/bg-readings/stats?userId=${TEST_USER_ID}&days=7`);
+      if (!res.ok) throw new Error("Failed to fetch BG stats");
+      return res.json();
+    },
+  });
+
+  // Fetch prescriptions
+  const { data: prescriptions = [], isLoading: loadingPrescriptions } = useQuery<Prescription[]>({
+    queryKey: ["/api/prescriptions", TEST_USER_ID],
+    queryFn: async () => {
+      const res = await fetch(`/api/prescriptions?userId=${TEST_USER_ID}`);
+      if (!res.ok) throw new Error("Failed to fetch prescriptions");
+      return res.json();
+    },
+  });
+
+  // Helper to determine BG status
+  const getBGStatus = (value: number): "in-range" | "high" | "low" | "urgent" => {
+    if (value >= 250) return "urgent";
+    if (value > 180) return "high";
+    if (value < 70) return "low";
+    return "in-range";
+  };
+
+  // Format timestamp
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const timeStr = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    return isToday ? `Today, ${timeStr}` : `${date.toLocaleDateString()}, ${timeStr}`;
+  };
 
   const macroRings = [
     { label: "Carbs", value: 180, target: 225, color: "hsl(0 70% 50%)" }, // Red
@@ -65,9 +105,22 @@ export default function Dashboard() {
             </Button>
           </div>
           <div className="space-y-3">
-            {mockBGReadings.map((reading) => (
-              <BGReadingCard key={reading.id} {...reading} />
-            ))}
+            {loadingBGReadings ? (
+              <div className="text-center text-muted-foreground py-4">Loading...</div>
+            ) : bgReadings.length === 0 ? (
+              <div className="text-center text-muted-foreground py-4">No BG readings yet</div>
+            ) : (
+              bgReadings.map((reading: BGReading) => (
+                <BGReadingCard 
+                  key={reading.id} 
+                  id={reading.id}
+                  value={reading.value}
+                  status={getBGStatus(reading.value)}
+                  timestamp={formatTimestamp(reading.timestamp.toString())}
+                  mealContext={reading.mealContext || undefined}
+                />
+              ))
+            )}
           </div>
         </Card>
 
@@ -79,9 +132,21 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="space-y-3">
-            {mockPrescriptions.map((prescription) => (
-              <PrescriptionCard key={prescription.id} {...prescription} />
-            ))}
+            {loadingPrescriptions ? (
+              <div className="text-center text-muted-foreground py-4">Loading...</div>
+            ) : prescriptions.length === 0 ? (
+              <div className="text-center text-muted-foreground py-4">No prescriptions</div>
+            ) : (
+              prescriptions.map((prescription: Prescription) => (
+                <PrescriptionCard 
+                  key={prescription.id} 
+                  id={prescription.id}
+                  drug={prescription.drug}
+                  dose={prescription.dose}
+                  scheduleTime={prescription.scheduleTime}
+                />
+              ))
+            )}
           </div>
         </Card>
       </div>
@@ -100,13 +165,19 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 rounded-lg bg-muted/50">
             <div className="text-sm text-muted-foreground">Avg BG</div>
-            <div className="text-2xl font-bold font-mono mt-1">118 mg/dL</div>
-            <div className="text-xs text-success mt-1">↓ 5% from last week</div>
+            <div className="text-2xl font-bold font-mono mt-1">
+              {bgStats?.average || 0} mg/dL
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {bgStats?.totalReadings || 0} readings this week
+            </div>
           </div>
           <div className="p-4 rounded-lg bg-muted/50">
             <div className="text-sm text-muted-foreground">Time in Range</div>
-            <div className="text-2xl font-bold font-mono mt-1">78%</div>
-            <div className="text-xs text-success mt-1">↑ 8% from last week</div>
+            <div className="text-2xl font-bold font-mono mt-1">
+              {bgStats?.timeInRange || 0}%
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">7-day average</div>
           </div>
           <div className="p-4 rounded-lg bg-muted/50">
             <div className="text-sm text-muted-foreground">Meal Adherence</div>
