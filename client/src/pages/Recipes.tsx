@@ -24,6 +24,12 @@ export default function Recipes() {
 
   const { data: recipes = [], isLoading } = useQuery<SpoonacularRecipe[]>({
     queryKey: ["/api/recipes/search/spoonacular", searchQuery],
+    queryFn: async () => {
+      const params = new URLSearchParams({ query: searchQuery });
+      const res = await fetch(`/api/recipes/search/spoonacular?${params}`);
+      if (!res.ok) throw new Error("Failed to fetch recipes");
+      return res.json();
+    },
     enabled: !!searchQuery,
   });
 
