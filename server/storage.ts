@@ -1,13 +1,20 @@
 import { db } from "./db";
 import { 
   type User, type InsertUser,
+  type Settings, type InsertSettings,
+  type UserPreferences, type InsertUserPreferences,
+  type UserAllergy, type InsertUserAllergy,
+  type UserIntolerance, type InsertUserIntolerance,
+  type UserCuisine, type InsertUserCuisine,
+  type UserCrossContam, type InsertUserCrossContam,
   type BGReading, type InsertBGReading,
   type Prescription, type InsertPrescription,
   type PrescriptionLog, type InsertPrescriptionLog,
   type Recipe, type InsertRecipe,
   type MealPlan, type InsertMealPlan,
   type ShoppingList, type InsertShoppingList,
-  users, bgReadings, prescriptions, prescriptionLogs,
+  users, settings, userPreferences, userAllergies, userIntolerances,
+  userCuisines, userCrossContam, bgReadings, prescriptions, prescriptionLogs,
   recipes, mealPlans, shoppingLists
 } from "@shared/schema";
 import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
@@ -18,6 +25,31 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, data: Partial<InsertUser>): Promise<User | undefined>;
+  
+  // Settings methods
+  upsertSettings(userId: string, data: Partial<Omit<InsertSettings, "userId">>): Promise<Settings>;
+  
+  // User preferences methods
+  upsertUserPreferences(userId: string, data: Partial<Omit<InsertUserPreferences, "userId">>): Promise<UserPreferences>;
+  
+  // Allergy/Intolerance/Cuisine methods
+  replaceUserAllergies(userId: string, allergens: string[]): Promise<void>;
+  replaceUserIntolerances(userId: string, intolerances: string[]): Promise<void>;
+  replaceUserCuisines(userId: string, cuisines: string[]): Promise<void>;
+  
+  // Cross-contamination methods
+  upsertUserCrossContam(userId: string, data: Omit<InsertUserCrossContam, "userId">): Promise<UserCrossContam>;
+  
+  // Get complete user profile
+  getUserProfile(userId: string): Promise<{
+    user: User | undefined;
+    settings: Settings | undefined;
+    preferences: UserPreferences | undefined;
+    allergies: UserAllergy[];
+    intolerances: UserIntolerance[];
+    cuisines: UserCuisine[];
+    crossContam: UserCrossContam | undefined;
+  }>;
   
   // BG Reading methods
   getBGReadings(userId: string, limit?: number): Promise<BGReading[]>;
@@ -61,7 +93,8 @@ export interface IStorage {
 }
 
 export class DbStorage implements IStorage {
-  // User methods
+  // ==================== USER METHODS ====================
+  
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id));
     return result[0];
@@ -82,7 +115,97 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  // BG Reading methods
+  // ==================== SETTINGS METHODS ====================
+  
+  async upsertSettings(userId: string, data: Partial<Omit<InsertSettings, "userId">>): Promise<Settings> {
+    const existing = await db.select().from(settings).where(eq(settings.userId, userId));
+    
+    if (existing.length > 0) {
+      const result = await db.update(settings).set(data).where(eq(settings.userId, userId)).returning();
+      return result[0];
+    } else {
+      const result = await db.insert(settings).values({ userId, ...data }).returning();
+      return result[0];
+    }
+  }
+
+  // ==================== USER PREFERENCES METHODS ====================
+  
+  async upsertUserPreferences(userId: string, data: Partial<Omit<InsertUserPreferences, "userId">>): Promise<UserPreferences> {
+    const existing = await db.select().from(userPreferences).where(eq(userPreferences.userId, userId));
+    
+    if (existing.length > 0) {
+      const result = await db.update(userPreferences).set(data).where(eq(userPreferences.userId, userId)).returning();
+      return result[0];
+    } else {
+      const result = await db.insert(userPreferences).values({ userId, ...data }).returning();
+      return result[0];
+    }
+  }
+
+  // ==================== ALLERGY/INTOLERANCE/CUISINE METHODS ====================
+  
+  async replaceUserAllergies(userId: string, allergens: string[]): Promise<void> {
+    await db.delete(userAllergies).where(eq(userAllergies.userId, userId));
+    if (allergens.length > 0) {
+      await db.insert(userAllergies).values(allergens.map(allergen => ({ userId, allergen })));
+    }
+  }
+
+  async replaceUserIntolerances(userId: string, intolerances: string[]): Promise<void> {
+    await db.delete(userIntolerances).where(eq(userIntolerances.userId, userId));
+    if (intolerances.length > 0) {
+      await db.insert(userIntolerances).values(intolerances.map(intolerance => ({ userId, intolerance })));
+    }
+  }
+
+  async replaceUserCuisines(userId: string, cuisines: string[]): Promise<void> {
+    await db.delete(userCuisines).where(eq(userCuisines.userId, userId));
+    if (cuisines.length > 0) {
+      await db.insert(userCuisines).values(cuisines.map(cuisine => ({ userId, cuisine })));
+    }
+  }
+
+  // ==================== CROSS-CONTAMINATION METHODS ====================
+  
+  async upsertUserCrossContam(userId: string, data: Omit<InsertUserCrossContam, "userId">): Promise<UserCrossContam> {
+    const existing = await db.select().from(userCrossContam).where(eq(userCrossContam.userId, userId));
+    
+    if (existing.length > 0) {
+      const result = await db.update(userCrossContam).set(data).where(eq(userCrossContam.userId, userId)).returning();
+      return result[0];
+    } else {
+      const result = await db.insert(userCrossContam).values({ userId, ...data }).returning();
+      return result[0];
+    }
+  }
+
+  // ==================== GET COMPLETE USER PROFILE ====================
+  
+  async getUserProfile(userId: string) {
+    const [user, userSettings, preferences, allergies, intolerances, cuisines, crossContam] = await Promise.all([
+      this.getUser(userId),
+      db.select().from(settings).where(eq(settings.userId, userId)).then(r => r[0]),
+      db.select().from(userPreferences).where(eq(userPreferences.userId, userId)).then(r => r[0]),
+      db.select().from(userAllergies).where(eq(userAllergies.userId, userId)),
+      db.select().from(userIntolerances).where(eq(userIntolerances.userId, userId)),
+      db.select().from(userCuisines).where(eq(userCuisines.userId, userId)),
+      db.select().from(userCrossContam).where(eq(userCrossContam.userId, userId)).then(r => r[0]),
+    ]);
+
+    return {
+      user,
+      settings: userSettings,
+      preferences,
+      allergies,
+      intolerances,
+      cuisines,
+      crossContam,
+    };
+  }
+
+  // ==================== BG READING METHODS ====================
+  
   async getBGReadings(userId: string, limit: number = 10): Promise<BGReading[]> {
     return await db
       .select()
@@ -102,8 +225,10 @@ export class DbStorage implements IStorage {
     timeInRange: number;
     totalReadings: number;
   }> {
-    const user = await this.getUser(userId);
-    if (!user) throw new Error("User not found");
+    const userSettings = await db.select().from(settings).where(eq(settings.userId, userId)).then(r => r[0]);
+    if (!userSettings) {
+      return { average: 0, timeInRange: 0, totalReadings: 0 };
+    }
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -122,13 +247,14 @@ export class DbStorage implements IStorage {
       return { average: 0, timeInRange: 0, totalReadings: 0 };
     }
 
-    const total = readings.reduce((sum: number, r: BGReading) => sum + r.value, 0);
+    const total = readings.reduce((sum, r) => sum + r.value, 0);
     const average = Math.round(total / readings.length);
+
+    const bgLow = userSettings.bgLow ?? 70;
+    const bgHigh = userSettings.bgHigh ?? 180;
     
-    const inRange = readings.filter(
-      (r: BGReading) => r.value >= (user.bgLowThreshold || 70) && r.value <= (user.bgHighThreshold || 180)
-    ).length;
-    const timeInRange = Math.round((inRange / readings.length) * 100);
+    const inRangeCount = readings.filter(r => r.value >= bgLow && r.value <= bgHigh).length;
+    const timeInRange = Math.round((inRangeCount / readings.length) * 100);
 
     return {
       average,
@@ -137,15 +263,10 @@ export class DbStorage implements IStorage {
     };
   }
 
-  // Prescription methods
+  // ==================== PRESCRIPTION METHODS ====================
+  
   async getPrescriptions(userId: string): Promise<Prescription[]> {
-    return await db
-      .select()
-      .from(prescriptions)
-      .where(and(
-        eq(prescriptions.userId, userId),
-        eq(prescriptions.isActive, true)
-      ));
+    return await db.select().from(prescriptions).where(eq(prescriptions.userId, userId));
   }
 
   async createPrescription(prescription: InsertPrescription): Promise<Prescription> {
@@ -154,23 +275,16 @@ export class DbStorage implements IStorage {
   }
 
   async updatePrescription(id: string, data: Partial<InsertPrescription>): Promise<Prescription | undefined> {
-    const result = await db.update(prescriptions)
-      .set(data)
-      .where(eq(prescriptions.id, id))
-      .returning();
+    const result = await db.update(prescriptions).set(data).where(eq(prescriptions.id, id)).returning();
     return result[0];
   }
 
   async deletePrescription(id: string): Promise<void> {
-    await db.update(prescriptions)
-      .set({ isActive: false })
-      .where(eq(prescriptions.id, id));
+    await db.delete(prescriptions).where(eq(prescriptions.id, id));
   }
 
   async markPrescriptionTaken(prescriptionId: string): Promise<PrescriptionLog> {
-    const result = await db.insert(prescriptionLogs)
-      .values({ prescriptionId })
-      .returning();
+    const result = await db.insert(prescriptionLogs).values({ prescriptionId }).returning();
     return result[0];
   }
 
@@ -182,37 +296,44 @@ export class DbStorage implements IStorage {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const userPrescriptions = await this.getPrescriptions(userId);
-    const total = userPrescriptions.length * days;
+    const userPrescriptions = await db
+      .select()
+      .from(prescriptions)
+      .where(eq(prescriptions.userId, userId));
 
-    const takenLogs = await db
+    if (userPrescriptions.length === 0) {
+      return { taken: 0, total: 0, percentage: 100 };
+    }
+
+    const prescriptionIds = userPrescriptions.map(p => p.id);
+    
+    const logs = await db
       .select()
       .from(prescriptionLogs)
-      .innerJoin(prescriptions, eq(prescriptionLogs.prescriptionId, prescriptions.id))
       .where(
         and(
-          eq(prescriptions.userId, userId),
+          sql`${prescriptionLogs.prescriptionId} = ANY(${sql`ARRAY[${sql.join(prescriptionIds.map(id => sql`${id}`), sql`, `)}]`})`,
           gte(prescriptionLogs.takenAt, startDate)
         )
       );
 
-    const taken = takenLogs.length;
+    const total = userPrescriptions.length * days;
+    const taken = logs.length;
     const percentage = total > 0 ? Math.round((taken / total) * 100) : 0;
 
     return { taken, total, percentage };
   }
 
-  // Recipe methods
+  // ==================== RECIPE METHODS ====================
+  
   async getRecipes(userId?: string): Promise<Recipe[]> {
     if (userId) {
       return await db
         .select()
         .from(recipes)
-        .where(
-          sql`${recipes.userId} IS NULL OR ${recipes.userId} = ${userId}`
-        );
+        .where(eq(recipes.userId, userId));
     }
-    return await db.select().from(recipes).where(sql`${recipes.userId} IS NULL`);
+    return await db.select().from(recipes);
   }
 
   async getRecipe(id: string): Promise<Recipe | undefined> {
@@ -226,10 +347,7 @@ export class DbStorage implements IStorage {
   }
 
   async updateRecipe(id: string, data: Partial<InsertRecipe>): Promise<Recipe | undefined> {
-    const result = await db.update(recipes)
-      .set(data)
-      .where(eq(recipes.id, id))
-      .returning();
+    const result = await db.update(recipes).set(data).where(eq(recipes.id, id)).returning();
     return result[0];
   }
 
@@ -237,7 +355,8 @@ export class DbStorage implements IStorage {
     await db.delete(recipes).where(eq(recipes.id, id));
   }
 
-  // Meal Plan methods
+  // ==================== MEAL PLAN METHODS ====================
+  
   async getMealPlans(userId: string, startDate: Date, endDate: Date): Promise<MealPlan[]> {
     return await db
       .select()
@@ -261,7 +380,8 @@ export class DbStorage implements IStorage {
     await db.delete(mealPlans).where(eq(mealPlans.id, id));
   }
 
-  // Shopping List methods
+  // ==================== SHOPPING LIST METHODS ====================
+  
   async getShoppingList(userId: string, weekStart: Date): Promise<ShoppingList[]> {
     return await db
       .select()
@@ -280,10 +400,7 @@ export class DbStorage implements IStorage {
   }
 
   async updateShoppingItem(id: string, isChecked: boolean): Promise<ShoppingList | undefined> {
-    const result = await db.update(shoppingLists)
-      .set({ isChecked })
-      .where(eq(shoppingLists.id, id))
-      .returning();
+    const result = await db.update(shoppingLists).set({ isChecked }).where(eq(shoppingLists.id, id)).returning();
     return result[0];
   }
 
@@ -292,58 +409,37 @@ export class DbStorage implements IStorage {
   }
 
   async generateShoppingList(userId: string, weekStart: Date): Promise<void> {
-    // Delete existing shopping list for this week
-    await db.delete(shoppingLists)
-      .where(
-        and(
-          eq(shoppingLists.userId, userId),
-          eq(shoppingLists.weekStart, weekStart)
-        )
-      );
-
-    // Get meal plans for the week
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
 
-    const plans = await db
-      .select()
-      .from(mealPlans)
-      .innerJoin(recipes, eq(mealPlans.recipeId, recipes.id))
-      .where(
-        and(
-          eq(mealPlans.userId, userId),
-          gte(mealPlans.date, weekStart),
-          lte(mealPlans.date, weekEnd)
-        )
-      );
+    const plans = await this.getMealPlans(userId, weekStart, weekEnd);
+    
+    await db.delete(shoppingLists).where(
+      and(
+        eq(shoppingLists.userId, userId),
+        eq(shoppingLists.weekStart, weekStart)
+      )
+    );
 
-    // Aggregate ingredients from recipes
-    const ingredientMap = new Map<string, { quantity: string; category: string }>();
-
+    const items: InsertShoppingList[] = [];
     for (const plan of plans) {
-      const recipe = plan.recipes;
-      if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
-        for (const ing of recipe.ingredients as any[]) {
-          const key = ing.name.toLowerCase();
-          if (!ingredientMap.has(key)) {
-            ingredientMap.set(key, {
-              quantity: ing.quantity,
+      if (plan.recipeId) {
+        const recipe = await this.getRecipe(plan.recipeId);
+        if (recipe && recipe.ingredients) {
+          const ingredients = recipe.ingredients as any[];
+          for (const ing of ingredients) {
+            items.push({
+              userId,
+              name: ing.name || ing,
+              quantity: ing.amount || "1",
               category: ing.category || "Other",
+              isChecked: false,
+              weekStart,
             });
           }
         }
       }
     }
-
-    // Insert shopping items
-    const items = Array.from(ingredientMap.entries()).map(([name, data]) => ({
-      userId,
-      name,
-      quantity: data.quantity,
-      category: data.category,
-      isChecked: false,
-      weekStart,
-    }));
 
     if (items.length > 0) {
       await db.insert(shoppingLists).values(items);

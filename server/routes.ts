@@ -9,6 +9,8 @@ import {
   insertShoppingListSchema,
 } from "@shared/schema";
 import { searchRecipes, getRecipeDetails, extractNutritionInfo, isT2DOptimized } from "./spoonacular";
+import { mifflinStJeor, tdee, adjustByGoal, convertToMetric, type ActivityLevel } from "./nutrition-calc";
+import { z } from "zod";
 
 // Utility for error responses
 function handleError(res: Response, error: unknown, defaultMessage: string) {
@@ -493,6 +495,201 @@ export function registerRoutes(app: Express) {
       res.json(userWithoutPassword);
     } catch (error) {
       handleError(res, error, "Failed to login");
+    }
+  });
+
+  // ==================== ONBOARDING ENDPOINT ====================
+
+  // Zod schema for onboarding payload (matching ChatGPT spec)
+  const OnboardingSchema = z.object({
+    locale: z.string().default("en-US"),
+    birth_year: z.number().int().gte(1900).lte(2100),
+    units: z.enum(["imperial", "metric"]).default("imperial"),
+    sex_at_birth: z.enum(["Female", "Male", "Prefer not to say"]).default("Prefer not to say"),
+    height: z.object({
+      ft: z.number().optional(),
+      in: z.number().optional(),
+      cm: z.number().optional(),
+    }),
+    weight_lb: z.number().optional(),
+    weight_kg: z.number().optional(),
+    activity_level: z.enum(["sedentary", "lightly_active", "moderately_active", "very_active", "extra_active"]),
+    goal: z.enum(["maintain", "lose", "gain"]).default("maintain"),
+    goal_intensity_pct: z.number().optional(),
+    dietary_pattern: z.string().default("No preference"),
+    allergies: z.array(z.string()).default([]),
+    intolerances: z.array(z.string()).default([]),
+    cross_contam: z.object({
+      may_contain: z.boolean().default(false),
+      shared_equipment: z.boolean().default(false),
+      shared_facility: z.boolean().default(false),
+    }).default({ may_contain: false, shared_equipment: false, shared_facility: false }),
+    cuisines: z.array(z.string()).default([]),
+    time_per_meal: z.string().default("≤30 min"),
+    cooking_skill: z.string().default("Beginner"),
+    budget_tier: z.enum(["Budget", "Moderate", "Foodie"]).default("Moderate"),
+    carb_exchange_g: z.number().default(15),
+    bg_thresholds: z.object({
+      low: z.number().default(70),
+      high: z.number().default(180),
+      urgent: z.number().default(250),
+    }).default({ low: 70, high: 180, urgent: 250 }),
+  });
+
+  // POST /api/me/onboarding
+  app.post("/api/me/onboarding", async (req: Request, res: Response) => {
+    try {
+      // Get user ID from request header or body
+      const userId = req.header("x-user-id") || req.body.userId;
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const input = OnboardingSchema.parse(req.body);
+
+      // Calculate age
+      const nowYear = new Date().getUTCFullYear();
+      const age = nowYear - input.birth_year;
+
+      // Convert units to metric
+      const { kg, cm } = convertToMetric({
+        units: input.units,
+        heightFt: input.height.ft,
+        heightIn: input.height.in,
+        heightCm: input.height.cm,
+        weightLb: input.weight_lb,
+        weightKg: input.weight_kg,
+      });
+
+      // Calculate BMR and TDEE
+      const bmr = mifflinStJeor({
+        sexAtBirth: input.sex_at_birth,
+        kg,
+        cm,
+        age,
+      });
+
+      const tdeeKcal = tdee(bmr, input.activity_level);
+
+      // Determine goal intensity percentage
+      const pct = input.goal === "maintain"
+        ? 0
+        : (input.goal_intensity_pct ?? (input.goal === "lose" ? 0.15 : 0.10));
+
+      // Calculate calorie target
+      let calorieTargetKcal = adjustByGoal(tdeeKcal, input.goal, pct);
+      calorieTargetKcal = Math.max(1200, calorieTargetKcal); // Floor at 1200
+
+      // Default macro split and guardrails
+      const macroSplit = { carb_pct: 0.35, protein_pct: 0.30, fat_pct: 0.35 };
+      const guardrails = {
+        carb_max_g: 46,
+        fiber_min_g: 2,
+        protein_min_g: 14,
+        satfat_max_g: 11,
+      };
+
+      const isSenior = age >= 65;
+
+      // Update users table
+      await storage.updateUser(userId, {
+        locale: input.locale,
+        birthYear: input.birth_year,
+        units: input.units,
+        budgetTier: input.budget_tier,
+        isSeniorDefault: isSenior,
+        onboardingCompleted: true,
+      });
+
+      // Upsert settings
+      await storage.upsertSettings(userId, {
+        carbExchangeG: input.carb_exchange_g,
+        bgLow: input.bg_thresholds.low,
+        bgHigh: input.bg_thresholds.high,
+        bgUrgent: input.bg_thresholds.urgent,
+        macroSplitJson: macroSplit,
+        calorieTargetKcal,
+        guardrailsJson: guardrails,
+        goalIntensityPct: input.goal === "maintain" ? null : pct,
+      });
+
+      // Upsert user preferences
+      await storage.upsertUserPreferences(userId, {
+        sexAtBirth: input.sex_at_birth,
+        heightFt: input.height.ft,
+        heightIn: input.height.in,
+        heightCm: cm,
+        weightLb: input.weight_lb,
+        weightKg: kg,
+        activityLevel: input.activity_level,
+        goal: input.goal,
+        dietaryPattern: input.dietary_pattern,
+        timePerMeal: input.time_per_meal,
+        cookingSkill: input.cooking_skill,
+      });
+
+      // Replace multi-value rows (allergies, intolerances, cuisines)
+      await storage.replaceUserAllergies(userId, input.allergies);
+      await storage.replaceUserIntolerances(userId, input.intolerances);
+      await storage.replaceUserCuisines(userId, input.cuisines);
+
+      // Upsert cross-contamination preferences
+      await storage.upsertUserCrossContam(userId, {
+        mayContain: input.cross_contam.may_contain,
+        sharedEquipment: input.cross_contam.shared_equipment,
+        sharedFacility: input.cross_contam.shared_facility,
+      });
+
+      return res.status(200).json({
+        user: {
+          id: userId,
+          locale: input.locale,
+          is_senior_default: isSenior,
+        },
+        settings: {
+          calorie_target_kcal: calorieTargetKcal,
+          macro_split_json: macroSplit,
+        },
+        guardrails,
+      });
+    } catch (error: any) {
+      console.error("Onboarding error:", error);
+      return res.status(400).json({
+        error: {
+          code: "ONBOARDING_ERROR",
+          message: String(error.message || error),
+        },
+      });
+    }
+  });
+
+  // GET /api/me - Fetch complete user profile
+  app.get("/api/me", async (req: Request, res: Response) => {
+    try {
+      const userId = req.header("x-user-id") || req.query.userId as string;
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const profile = await storage.getUserProfile(userId);
+      if (!profile.user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Don't send password
+      const { password, ...userWithoutPassword } = profile.user;
+
+      res.json({
+        user: userWithoutPassword,
+        settings: profile.settings,
+        preferences: profile.preferences,
+        allergies: profile.allergies,
+        intolerances: profile.intolerances,
+        cuisines: profile.cuisines,
+        cross_contam: profile.crossContam,
+      });
+    } catch (error) {
+      handleError(res, error, "Failed to fetch user profile");
     }
   });
 }
