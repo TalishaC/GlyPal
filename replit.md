@@ -39,7 +39,7 @@ Preferred communication style: Simple, everyday language.
 
 **API Structure:** RESTful API design with all routes prefixed with `/api`. Currently implements a minimal storage interface pattern that can be extended for CRUD operations.
 
-**Storage Layer:** Abstract storage interface (IStorage) currently implemented as in-memory storage (MemStorage) for user management. Designed to be swapped with persistent database implementations (PostgreSQL via Drizzle ORM is configured but not yet implemented).
+**Storage Layer:** Database storage (DbStorage) implemented using Supabase/PostgreSQL via Drizzle ORM. Handles all CRUD operations for users, BG readings, prescriptions, recipes, meal plans, and shopping lists.
 
 **Development Features:** Custom logging middleware for API requests, runtime error overlay in development, and Replit-specific plugins for enhanced developer experience.
 
@@ -58,8 +58,8 @@ Preferred communication style: Simple, everyday language.
 ### External Dependencies
 
 **Nutrition APIs:**
-- **Nutritionix:** Primary nutrition data provider for recipe analysis and ingredient nutrition computation. Always takes precedence when conflicts occur with source data.
-- **Spoonacular:** Recipe import source with attribution requirements for imported content.
+- **Nutritionix:** Primary nutrition data provider for recipe analysis and ingredient nutrition computation (planned). Always takes precedence when conflicts occur with source data.
+- **Spoonacular:** Active integration for recipe search and discovery. API key configured via SPOONACULAR_API_KEY secret. Provides diabetes-friendly recipes with full nutrition analysis. T2D optimization filtering applied (carbs <46g, fiber ≥2g, protein ≥14g, sat fat <11g per serving).
 
 **Shopping Integration:**
 - **Chicory:** Primary shopping cart integration for ingredient purchasing with budget-aware item selection (Budget: $2.50/meal, Moderate: $5/meal, Foodie: $10/meal).
