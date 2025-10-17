@@ -7,10 +7,22 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  name: text("name"),
+  dateOfBirth: text("date_of_birth"),
+  gender: text("gender"),
+  weightKg: decimal("weight_kg", { precision: 5, scale: 1 }),
+  heightCm: decimal("height_cm", { precision: 5, scale: 1 }),
+  activityLevel: text("activity_level"),
+  goal: text("goal"),
+  allergens: text("allergens").array(),
+  carbsPercent: integer("carbs_percent").default(35),
+  proteinPercent: integer("protein_percent").default(30),
+  fatPercent: integer("fat_percent").default(35),
   bgLowThreshold: integer("bg_low_threshold").default(70),
   bgHighThreshold: integer("bg_high_threshold").default(180),
   bgUrgentThreshold: integer("bg_urgent_threshold").default(250),
   language: text("language").default("en"),
+  onboardingCompleted: boolean("onboarding_completed").default(false),
 });
 
 export const bgReadings = pgTable("bg_readings", {

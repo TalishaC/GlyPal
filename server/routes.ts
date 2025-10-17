@@ -420,4 +420,79 @@ export function registerRoutes(app: Express) {
       handleError(res, error, "Failed to fetch user");
     }
   });
+
+  // Update user profile
+  app.patch("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      // Don't allow password updates through this endpoint
+      const { password, ...safeData } = updateData;
+      
+      const user = await storage.updateUser(id, safeData);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Don't send password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      handleError(res, error, "Failed to update user");
+    }
+  });
+
+  // Signup
+  app.post("/api/auth/signup", async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password are required" });
+      }
+
+      // Check if username already exists
+      const existing = await storage.getUserByUsername(username);
+      if (existing) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+
+      // Create user (in production, hash the password!)
+      const user = await storage.createUser({
+        username,
+        password, // TODO: Hash password in production
+      });
+
+      // Don't send password
+      const { password: _, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      handleError(res, error, "Failed to create user");
+    }
+  });
+
+  // Login
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password are required" });
+      }
+
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user || user.password !== password) { // TODO: Compare hashed passwords in production
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      // Don't send password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      handleError(res, error, "Failed to login");
+    }
+  });
 }
