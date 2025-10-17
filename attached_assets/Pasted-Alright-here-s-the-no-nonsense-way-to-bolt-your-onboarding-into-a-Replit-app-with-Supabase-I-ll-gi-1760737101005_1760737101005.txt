@@ -1,0 +1,376 @@
+Alright, here’s the no-nonsense way to bolt your onboarding into a Replit app with Supabase. I’ll give you a minimal but real setup: server API route, DB writes, client wizard. Paste, tweak, ship.
+
+---
+
+# 0) Replit project setup
+
+**Stack**: Node + React (Vite) + Express + Supabase
+
+1. Create a new Repl → “Node.js.”
+2. Add packages:
+
+```bash
+npm i express cors zod @supabase/supabase-js
+npm i -D vite @vitejs/plugin-react react react-dom
+```
+
+3. Make a `client/` folder for the React app. Build to `dist/` and have Express serve it.
+
+**Replit Secrets** (left sidebar → Secrets):
+
+* `SUPABASE_URL`
+* `SUPABASE_ANON_KEY`
+* `SUPABASE_SERVICE_ROLE_KEY`  ← used **server-side only**
+* `NODE_ENV=production`
+
+Run the SQL migration you already have against Supabase (the one I gave you). Add the extra onboarding tables if you haven’t yet.
+
+---
+
+# 1) Server: Express + Supabase client
+
+`server.js`
+
+```js
+import 'dotenv/config'
+import express from 'express'
+import cors from 'cors'
+import { createClient } from '@supabase/supabase-js'
+import { z } from 'zod'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+const app = express()
+app.use(cors())
+app.use(express.json({ limit: '1mb' }))
+
+// Supabase: anon for read-ish, service for writes with RLS bypass where needed
+const supaAnon = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+const supaSrv  = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+
+// Simple auth helper (client passes supabase user id in header after login)
+function getUserId(req) {
+  const uid = req.header('x-user-id')
+  if (!uid) throw new Error('MISSING_USER_ID')
+  return uid
+}
+
+// BMR/TDEE/Goal helpers
+const ACTIVITY_MULT = {
+  sedentary: 1.2, lightly_active: 1.375, moderately_active: 1.55, very_active: 1.725, extra_active: 1.9
+}
+function mifflinStJeor({sexAtBirth, kg, cm, age}) {
+  const base = 10*kg + 6.25*cm - 5*age
+  return Math.round(base + (sexAtBirth === 'Male' ? 5 : -161))
+}
+function tdee(bmr, key) { return Math.round(bmr * (ACTIVITY_MULT[key] ?? 1.2)) }
+function adjustByGoal(tdee, goal, pct) {
+  if (goal === 'lose') return Math.round(tdee * (1 - pct))
+  if (goal === 'gain') return Math.round(tdee * (1 + pct))
+  return tdee
+}
+
+// Zod schema for onboarding payload
+const Onboarding = z.object({
+  locale: z.string().default('en-US'),
+  birth_year: z.number().int().gte(1900).lte(2100),
+  units: z.enum(['imperial','metric']).default('imperial'),
+  sex_at_birth: z.enum(['Female','Male','Prefer not to say']).default('Prefer not to say'),
+  height: z.object({ ft: z.number().optional(), in: z.number().optional(), cm: z.number().optional() }),
+  weight_lb: z.number().optional(),
+  weight_kg: z.number().optional(),
+  activity_level: z.enum(['sedentary','lightly_active','moderately_active','very_active','extra_active']),
+  goal: z.enum(['maintain','lose','gain']).default('maintain'),
+  goal_intensity_pct: z.number().optional(), // 0.10|0.15|0.20 when lose/gain
+  dietary_pattern: z.string().default('No preference'),
+  allergies: z.array(z.string()).default([]),
+  intolerances: z.array(z.string()).default([]),
+  cross_contam: z.object({
+    may_contain: z.boolean().default(false),
+    shared_equipment: z.boolean().default(false),
+    shared_facility: z.boolean().default(false),
+  }).default({may_contain:false,shared_equipment:false,shared_facility:false}),
+  cuisines: z.array(z.string()).default([]),
+  time_per_meal: z.string().default('≤30 min'),
+  cooking_skill: z.string().default('Beginner'),
+  budget_tier: z.enum(['Budget','Moderate','Foodie']).default('Moderate'),
+  carb_exchange_g: z.number().default(15),
+  bg_thresholds: z.object({ low: z.number().default(70), high: z.number().default(180), urgent: z.number().default(250) }).default({})
+})
+
+// POST /api/me/onboarding
+app.post('/api/me/onboarding', async (req, res) => {
+  try {
+    const user_id = getUserId(req)
+    const i = Onboarding.parse(req.body)
+
+    // Convert units
+    const nowYear = new Date().getUTCFullYear()
+    const age = nowYear - i.birth_year
+    const kg = i.units === 'imperial'
+      ? (i.weight_lb ?? 0) * 0.453592
+      : (i.weight_kg ?? 0)
+    const cm = i.units === 'imperial'
+      ? (((i.height.ft ?? 0) * 12 + (i.height.in ?? 0)) * 2.54)
+      : (i.height.cm ?? 0)
+
+    const bmr = mifflinStJeor({ sexAtBirth: i.sex_at_birth, kg, cm, age })
+    const tdeeKcal = tdee(bmr, i.activity_level)
+    const pct = i.goal === 'maintain' ? 0 : (i.goal_intensity_pct ?? (i.goal === 'lose' ? 0.15 : 0.10))
+    let calorie_target_kcal = adjustByGoal(tdeeKcal, i.goal, pct)
+    calorie_target_kcal = Math.max(1200, calorie_target_kcal) // simple floor
+
+    // Default macro split if you haven’t set one elsewhere
+    const macro_split = { carb_pct: 0.35, protein_pct: 0.30, fat_pct: 0.35 }
+    const guardrails = { carb_max_g: 46, fiber_min_g: 2, protein_min_g: 14, satfat_max_g: 11 }
+
+    // Upserts in a transaction-ish sequence (Supabase JS doesn’t have BEGIN, but this is fine for onboarding)
+    await supaSrv.from('users').upsert({
+      id: user_id,
+      locale: i.locale,
+      birth_year: i.birth_year,
+      units: i.units,
+      budget_tier: i.budget_tier,
+      is_senior_default: (nowYear - i.birth_year) >= 65
+    }, { onConflict: 'id' })
+
+    await supaSrv.from('settings').upsert({
+      user_id,
+      carb_exchange_g: i.carb_exchange_g,
+      bg_low: i.bg_thresholds.low,
+      bg_high: i.bg_thresholds.high,
+      bg_urgent: i.bg_thresholds.urgent,
+      macro_split_json: macro_split,
+      calorie_target_kcal,
+      guardrails_json: guardrails,
+      goal_intensity_pct: i.goal === 'maintain' ? null : pct
+    }, { onConflict: 'user_id' })
+
+    await supaSrv.from('user_preferences').upsert({
+      user_id,
+      activity_level: i.activity_level,
+      goal: i.goal,
+      dietary_pattern: i.dietary_pattern,
+      time_per_meal: i.time_per_meal,
+      cooking_skill: i.cooking_skill
+    }, { onConflict: 'user_id' })
+
+    // Replace multi-value rows
+    const multi = []
+    for (const a of i.allergies) multi.push({ table: 'user_allergies', value: { user_id, allergen: a }})
+    for (const t of i.intolerances) multi.push({ table: 'user_intolerances', value: { user_id, intolerance: t }})
+    for (const c of i.cuisines) multi.push({ table: 'user_cuisines', value: { user_id, cuisine: c }})
+
+    // Clear then insert
+    await supaSrv.from('user_allergies').delete().eq('user_id', user_id)
+    await supaSrv.from('user_intolerances').delete().eq('user_id', user_id)
+    await supaSrv.from('user_cuisines').delete().eq('user_id', user_id)
+    if (multi.length) {
+      const grouped = multi.reduce((m, r) => { (m[r.table] ||= []).push(r.value); return m }, {})
+      for (const [table, rows] of Object.entries(grouped)) await supaSrv.from(table).insert(rows)
+    }
+
+    await supaSrv.from('user_cross_contam').upsert({ user_id, ...i.cross_contam }, { onConflict: 'user_id' })
+
+    return res.status(200).json({
+      user: { id: user_id, locale: i.locale, is_senior_default: (nowYear - i.birth_year) >= 65 },
+      settings: { calorie_target_kcal, macro_split_json: macro_split },
+      guardrails
+    })
+  } catch (e) {
+    console.error(e)
+    return res.status(400).json({ error: { code: 'ONBOARDING_ERROR', message: String(e.message || e) } })
+  }
+})
+
+// Serve React build
+app.use(express.static('client/dist'))
+app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'client/dist/index.html')))
+
+const port = process.env.PORT || 3000
+app.listen(port, () => console.log(`GlyPal API running on ${port}`))
+```
+
+---
+
+# 2) Client: tiny React wizard (Vite)
+
+`client/index.html` is standard Vite.
+`client/src/main.jsx`:
+
+```jsx
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(<App />)
+```
+
+`client/src/App.jsx` (skeletal 3-step wizard; expand as needed):
+
+```jsx
+import React, { useState } from 'react'
+
+export default function App() {
+  const [step, setStep] = useState(0)
+  const [data, setData] = useState({
+    locale: 'en-US',
+    birth_year: 1960,
+    units: 'imperial',
+    sex_at_birth: 'Prefer not to say',
+    height: { ft: 5, in: 7 },
+    weight_lb: 170,
+    activity_level: 'lightly_active',
+    goal: 'maintain',
+    goal_intensity_pct: null,
+    dietary_pattern: 'No preference',
+    allergies: [],
+    intolerances: [],
+    cross_contam: { may_contain:false, shared_equipment:false, shared_facility:false },
+    cuisines: [],
+    time_per_meal: '≤30 min',
+    cooking_skill: 'Beginner',
+    budget_tier: 'Moderate',
+    carb_exchange_g: 15,
+    bg_thresholds: { low: 70, high: 180, urgent: 250 }
+  })
+
+  function update(patch) { setData(d => ({ ...d, ...patch })) }
+
+  async function submit() {
+    // In a real app you’d get supabase.auth.getUser() and pass uid
+    const userId = window.localStorage.getItem('uid') || crypto.randomUUID()
+    window.localStorage.setItem('uid', userId)
+
+    const res = await fetch('/api/me/onboarding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+      body: JSON.stringify(data)
+    })
+    const json = await res.json()
+    if (!res.ok) alert(JSON.stringify(json.error || json))
+    else alert(`Calorie target: ${json.settings.calorie_target_kcal} kcal`)
+  }
+
+  return (
+    <div style={{maxWidth: 680, margin: '40px auto', fontFamily: 'system-ui'}}>
+      <h1>GlyPal Onboarding</h1>
+      {step === 0 && (
+        <section>
+          <h3>About you</h3>
+          <label>Birth year <input type="number" value={data.birth_year}
+            onChange={e=>update({birth_year: +e.target.value})}/></label>
+          <div>
+            <label>Height (ft) <input type="number" value={data.height.ft}
+              onChange={e=>update({height:{...data.height, ft:+e.target.value}})}/></label>
+            <label>in <input type="number" value={data.height.in}
+              onChange={e=>update({height:{...data.height, in:+e.target.value}})}/></label>
+          </div>
+          <label>Weight (lb) <input type="number" value={data.weight_lb}
+            onChange={e=>update({weight_lb:+e.target.value})}/></label>
+          <button onClick={()=>setStep(1)}>Next</button>
+        </section>
+      )}
+      {step === 1 && (
+        <section>
+          <h3>Activity & goal</h3>
+          <select value={data.activity_level}
+            onChange={e=>update({activity_level:e.target.value})}>
+            <option value="sedentary">Sedentary</option>
+            <option value="lightly_active">Lightly Active</option>
+            <option value="moderately_active">Moderately Active</option>
+            <option value="very_active">Very Active</option>
+            <option value="extra_active">Extra Active</option>
+          </select>
+          <select value={data.goal}
+            onChange={e=>update({goal:e.target.value})}>
+            <option value="maintain">Maintain</option>
+            <option value="lose">Lose</option>
+            <option value="gain">Gain</option>
+          </select>
+          {data.goal !== 'maintain' && (
+            <select value={data.goal_intensity_pct ?? 0.15}
+              onChange={e=>update({goal_intensity_pct: +e.target.value})}>
+              <option value={0.10}>10%</option>
+              <option value={0.15}>15%</option>
+              <option value={0.20}>20%</option>
+            </select>
+          )}
+          <button onClick={()=>setStep(2)}>Next</button>
+        </section>
+      )}
+      {step === 2 && (
+        <section>
+          <h3>Diet & safety</h3>
+          <label>Carb exchange (g) <input type="number" value={data.carb_exchange_g}
+            onChange={e=>update({carb_exchange_g:+e.target.value})}/></label>
+          <div>
+            <label>BG Low <input type="number" value={data.bg_thresholds.low}
+              onChange={e=>update({bg_thresholds:{...data.bg_thresholds, low:+e.target.value}})}/></label>
+            <label>High <input type="number" value={data.bg_thresholds.high}
+              onChange={e=>update({bg_thresholds:{...data.bg_thresholds, high:+e.target.value}})}/></label>
+            <label>Urgent <input type="number" value={data.bg_thresholds.urgent}
+              onChange={e=>update({bg_thresholds:{...data.bg_thresholds, urgent:+e.target.value}})}/></label>
+          </div>
+          <button onClick={submit}>Finish</button>
+        </section>
+      )}
+    </div>
+  )
+}
+```
+
+**Dev server**: add a `vite.config.js`, build script, and serve static `client/dist` from Express. In Replit “Run” command, do:
+
+```bash
+# package.json
+{
+  "scripts": {
+    "dev": "concurrently \"npm:serve\" \"npm:client\"",
+    "serve": "node server.js",
+    "client": "cd client && vite",
+    "build": "cd client && vite build"
+  }
+}
+```
+
+(Install `concurrently` if you want local dual-serve, or just build once and run Express.)
+
+---
+
+# 3) Supabase auth in Replit
+
+For a proper app, you’ll sign up/login with Supabase Auth in the client, then pass the user ID in the header (or verify JWT on the server if you’re feeling responsible). In the skeleton above I used `x-user-id` to keep things moving. Replace that with real auth when you’re ready.
+
+Client:
+
+```js
+import { createClient } from '@supabase/supabase-js'
+export const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY)
+// supabase.auth.signInWithPassword({ email, password })
+```
+
+Server (optional JWT validation): verify the `Authorization` header and pull the user id from the token instead of `x-user-id`.
+
+---
+
+# 4) Wire senior defaults, Spanish, and rings
+
+* When onboarding `birth_year` indicates age ≥ 65, store `is_senior_default=true` and render larger type + voice by default.
+* For Spanish, keep `locale` in `users`. Use a small i18n map or a library and swap labels.
+* Rings read from `settings.calorie_target_kcal`, `settings.macro_split_json`, and BG readings; onboarding fills those.
+
+---
+
+# 5) Quick sanity checklist
+
+* Submit onboarding → check Supabase tables: `users`, `settings`, `user_preferences`, `user_allergies`, `user_intolerances`, `user_cuisines`, `user_cross_contam` all have your values.
+* Change activity/goal → resend → `settings.calorie_target_kcal` changes accordingly.
+* RLS: call the endpoint with a different `x-user-id` and verify you don’t see or affect other users’ rows.
+
+---
+
+That’s the onboarding path end-to-end: UI wizard, API route, Supabase writes, and the calorie/macro math you wanted. When you’re ready, I can add the **/me** GET that hydrates the client with all onboarding data in one shot and a **report generator** endpoint so PDF exports show the same numbers users saw during onboarding.
