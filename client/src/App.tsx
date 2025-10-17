@@ -56,6 +56,8 @@ function AuthenticatedApp() {
 
 function Router() {
   const { user, isLoading } = useAuth();
+  
+  console.log("Router rendering", { user, isLoading });
 
   if (isLoading) {
     return (

@@ -65,13 +65,14 @@ export default function Onboarding() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const toggleItem = (field: string, item: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: (prev[field as keyof typeof formData] as string[]).includes(item)
-        ? (prev[field as keyof typeof formData] as string[]).filter((a: string) => a !== item)
-        : [...(prev[field as keyof typeof formData] as string[]), item]
-    }));
+  const toggleItem = (field: "allergies" | "intolerances" | "cuisines", item: string) => {
+    setFormData(prev => {
+      const currentArray = prev[field];
+      const newArray = currentArray.includes(item)
+        ? currentArray.filter(a => a !== item)
+        : [...currentArray, item];
+      return { ...prev, [field]: newArray };
+    });
   };
 
   const handleUnitsChange = (newUnits: string) => {

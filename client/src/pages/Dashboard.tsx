@@ -63,11 +63,11 @@ export default function Dashboard() {
   });
 
   // Extract settings for thresholds and targets
-  const bgLow = userProfile?.settings?.bgLow ?? 70;
-  const bgHigh = userProfile?.settings?.bgHigh ?? 180;
-  const bgUrgent = userProfile?.settings?.bgUrgent ?? 250;
-  const calorieTarget = userProfile?.settings?.calorieTargetKcal ?? 2000;
-  const macroSplit = userProfile?.settings?.macroSplitJson ?? { carb_pct: 0.35, protein_pct: 0.30, fat_pct: 0.35 };
+  const bgLow = userProfile?.settings?.bgLow || 70;
+  const bgHigh = userProfile?.settings?.bgHigh || 180;
+  const bgUrgent = userProfile?.settings?.bgUrgent || 250;
+  const calorieTarget = userProfile?.settings?.calorieTargetKcal || 2000;
+  const macroSplit = userProfile?.settings?.macroSplitJson || { carb_pct: 0.35, protein_pct: 0.30, fat_pct: 0.35 };
 
   // Helper to determine BG status using user's thresholds
   const getBGStatus = (value: number): "in-range" | "high" | "low" | "urgent" => {
