@@ -4,38 +4,36 @@ import { Button } from "@/components/ui/button";
 import { Search, Filter, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { searchRecipes } from "@/lib/recipes";
 
 interface Recipe {
   id: string;
+  spoonacularId?: number;
   title: string;
-  image_url?: string;
-  prep_time_minutes?: number;
-  servings?: number;
-  carbs_g?: number;
-  protein_g?: number;
-  fiber_g?: number;
-  difficulty?: 'easy' | 'medium' | 'difficult';
+  image: string;
+  readyInMinutes: number;
+  servings: number;
+  carbs: number;
+  protein: number;
+  fiber: number;
+  saturatedFat: number;
+  isT2DOptimized: boolean;
+  source: 'database' | 'spoonacular';
 }
-
-const difficultyMap = {
-  'easy': 'Easy' as const,
-  'medium': 'Medium' as const,
-  'difficult': 'Hard' as const,
-};
 
 export default function Recipes() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
-  const [maxDifficulty, setMaxDifficulty] = useState<'easy' | 'medium' | 'difficult' | undefined>();
 
   const { data: recipes = [], isLoading } = useQuery<Recipe[]>({
-    queryKey: ['recipes', searchQuery, selectedCuisines, maxDifficulty],
-    queryFn: () => searchRecipes({
-      q: searchQuery || undefined,
-      includeCuisines: selectedCuisines.length > 0 ? selectedCuisines : undefined,
-      maxDifficulty,
-    }),
+    queryKey: ['/api/recipes/search', searchQuery],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.set('q', searchQuery);
+      params.set('limit', '20');
+      
+      const res = await fetch(`/api/recipes/search?${params}`);
+      if (!res.ok) throw new Error("Failed to search recipes");
+      return res.json();
+    },
   });
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
@@ -94,15 +92,15 @@ export default function Recipes() {
               key={recipe.id}
               id={recipe.id}
               title={recipe.title}
-              image={recipe.image_url || "https://via.placeholder.com/400x300?text=Recipe"}
-              time={recipe.prep_time_minutes || 30}
-              servings={recipe.servings || 4}
-              carbs={recipe.carbs_g || 0}
-              protein={recipe.protein_g || 0}
-              fiber={recipe.fiber_g || 0}
-              difficulty={recipe.difficulty ? difficultyMap[recipe.difficulty] : 'Easy'}
-              isT2DOptimized={(recipe.carbs_g || 0) < 46 && (recipe.fiber_g || 0) >= 2 && (recipe.protein_g || 0) >= 14}
-              onClick={() => console.log(`View recipe ${recipe.id}`)}
+              image={recipe.image}
+              time={recipe.readyInMinutes}
+              servings={recipe.servings}
+              carbs={recipe.carbs}
+              protein={recipe.protein}
+              fiber={recipe.fiber}
+              difficulty="Easy"
+              isT2DOptimized={recipe.isT2DOptimized}
+              onClick={() => console.log(`View recipe ${recipe.id} from ${recipe.source}`)}
             />
           ))}
         </div>

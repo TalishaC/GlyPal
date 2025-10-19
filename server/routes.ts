@@ -350,12 +350,8 @@ export function registerRoutes(app: Express) {
               satFat: String(nutrition.saturatedFat),
               difficulty: "Easy",
               isT2DOptimized: isT2DOptimized(nutrition),
-              ingredients: recipe.extendedIngredients ? recipe.extendedIngredients.map(i => ({
-                name: i.name,
-                amount: i.amount,
-                unit: i.unit,
-              })) : [],
-              instructions: recipe.analyzedInstructions?.[0]?.steps || [],
+              ingredients: [],
+              instructions: [],
             }).catch(err => console.error("Failed to cache recipe:", err));
           }
           
