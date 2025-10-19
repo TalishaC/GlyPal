@@ -287,6 +287,111 @@ export function registerRoutes(app: Express) {
     }
   });
 
+  // Hybrid search: Database + Spoonacular with auto-caching
+  app.get("/api/recipes/search", async (req: Request, res: Response) => {
+    try {
+      const query = (req.query.q as string) || "";
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+      
+      // Get all recipes from database (filtered by title if query provided)
+      const dbRecipes = await storage.getRecipes();
+      const filteredDbRecipes = query
+        ? dbRecipes.filter(r => r.title.toLowerCase().includes(query.toLowerCase()))
+        : dbRecipes;
+      
+      // Calculate how many more we need from Spoonacular
+      const remainingCount = Math.max(0, limit - filteredDbRecipes.length);
+      
+      // Format database recipes to match response format
+      const formattedDbRecipes = filteredDbRecipes.slice(0, limit).map(r => ({
+        id: r.id,
+        spoonacularId: r.spoonacularId,
+        title: r.title,
+        image: r.image,
+        readyInMinutes: r.time,
+        servings: r.servings,
+        carbs: parseFloat(String(r.carbs)),
+        protein: parseFloat(String(r.protein)),
+        fiber: parseFloat(String(r.fiber)),
+        saturatedFat: r.satFat ? parseFloat(String(r.satFat)) : 0,
+        isT2DOptimized: r.isT2DOptimized,
+        source: 'database' as const,
+      }));
+      
+      // If we have enough from database, return early
+      if (remainingCount <= 0) {
+        return res.json(formattedDbRecipes);
+      }
+      
+      // Fetch additional recipes from Spoonacular
+      const spoonResults = await searchRecipes(query || "healthy", {
+        number: remainingCount,
+      });
+      
+      // Process and cache Spoonacular recipes
+      const spoonRecipes = await Promise.all(
+        spoonResults.results.map(async (recipe) => {
+          const nutrition = extractNutritionInfo(recipe);
+          
+          // Check if already cached
+          const existingRecipe = await storage.getRecipeBySpoonacularId(recipe.id);
+          
+          if (!existingRecipe) {
+            // Auto-cache this recipe asynchronously (don't block response)
+            storage.createRecipe({
+              spoonacularId: recipe.id,
+              title: recipe.title,
+              image: recipe.image || "https://via.placeholder.com/400x300?text=Recipe",
+              time: recipe.readyInMinutes || 30,
+              servings: recipe.servings || 2,
+              carbs: String(nutrition.carbs),
+              protein: String(nutrition.protein),
+              fiber: String(nutrition.fiber),
+              satFat: String(nutrition.saturatedFat),
+              difficulty: "Easy",
+              isT2DOptimized: isT2DOptimized(nutrition),
+              ingredients: recipe.extendedIngredients ? recipe.extendedIngredients.map(i => ({
+                name: i.name,
+                amount: i.amount,
+                unit: i.unit,
+              })) : [],
+              instructions: recipe.analyzedInstructions?.[0]?.steps || [],
+            }).catch(err => console.error("Failed to cache recipe:", err));
+          }
+          
+          return {
+            id: existingRecipe?.id || String(recipe.id),
+            spoonacularId: recipe.id,
+            title: recipe.title,
+            image: recipe.image,
+            readyInMinutes: recipe.readyInMinutes || 30,
+            servings: recipe.servings || 2,
+            carbs: nutrition.carbs,
+            protein: nutrition.protein,
+            fiber: nutrition.fiber,
+            saturatedFat: nutrition.saturatedFat,
+            isT2DOptimized: isT2DOptimized(nutrition),
+            source: 'spoonacular' as const,
+          };
+        })
+      );
+      
+      // Merge and sort (T2D optimized first, then database recipes)
+      const allRecipes = [...formattedDbRecipes, ...spoonRecipes]
+        .sort((a, b) => {
+          if (a.isT2DOptimized && !b.isT2DOptimized) return -1;
+          if (!a.isT2DOptimized && b.isT2DOptimized) return 1;
+          if (a.source === 'database' && b.source === 'spoonacular') return -1;
+          if (a.source === 'spoonacular' && b.source === 'database') return 1;
+          return 0;
+        });
+      
+      res.json(allRecipes);
+    } catch (error) {
+      handleError(res, error, "Failed to search recipes");
+    }
+  });
+
   // ==================== MEAL PLANS ROUTES ====================
   
   // Get meal plans for a date range
