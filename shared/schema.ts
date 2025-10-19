@@ -106,6 +106,7 @@ export const prescriptionLogs = pgTable("prescription_logs", {
 export const recipes = pgTable("recipes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  spoonacularId: integer("spoonacular_id").unique(), // Track external source
   title: text("title").notNull(),
   image: text("image").notNull(),
   time: integer("time").notNull(),
