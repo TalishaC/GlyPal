@@ -75,6 +75,7 @@ export interface IStorage {
   // Recipe methods
   getRecipes(userId?: string): Promise<Recipe[]>;
   getRecipe(id: string): Promise<Recipe | undefined>;
+  getRecipeBySpoonacularId(spoonacularId: number): Promise<Recipe | undefined>;
   createRecipe(recipe: InsertRecipe): Promise<Recipe>;
   updateRecipe(id: string, data: Partial<InsertRecipe>): Promise<Recipe | undefined>;
   deleteRecipe(id: string): Promise<void>;
@@ -338,6 +339,11 @@ export class DbStorage implements IStorage {
 
   async getRecipe(id: string): Promise<Recipe | undefined> {
     const result = await db.select().from(recipes).where(eq(recipes.id, id));
+    return result[0];
+  }
+
+  async getRecipeBySpoonacularId(spoonacularId: number): Promise<Recipe | undefined> {
+    const result = await db.select().from(recipes).where(eq(recipes.spoonacularId, spoonacularId));
     return result[0];
   }
 
