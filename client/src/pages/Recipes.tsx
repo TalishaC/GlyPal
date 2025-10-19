@@ -4,33 +4,38 @@ import { Button } from "@/components/ui/button";
 import { Search, Filter, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { searchRecipes } from "@/lib/recipes";
 
-interface SpoonacularRecipe {
+interface Recipe {
   id: string;
-  spoonacularId: number;
   title: string;
-  image?: string;
-  readyInMinutes: number;
-  servings: number;
-  carbs: number;
-  protein: number;
-  fiber: number;
-  saturatedFat: number;
-  isT2DOptimized: boolean;
+  image_url?: string;
+  prep_time_minutes?: number;
+  servings?: number;
+  carbs_g?: number;
+  protein_g?: number;
+  fiber_g?: number;
+  difficulty?: 'easy' | 'medium' | 'difficult';
 }
 
-export default function Recipes() {
-  const [searchQuery, setSearchQuery] = useState("healthy");
+const difficultyMap = {
+  'easy': 'Easy' as const,
+  'medium': 'Medium' as const,
+  'difficult': 'Hard' as const,
+};
 
-  const { data: recipes = [], isLoading } = useQuery<SpoonacularRecipe[]>({
-    queryKey: ["/api/recipes/search/spoonacular", searchQuery],
-    queryFn: async () => {
-      const params = new URLSearchParams({ query: searchQuery });
-      const res = await fetch(`/api/recipes/search/spoonacular?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch recipes");
-      return res.json();
-    },
-    enabled: !!searchQuery,
+export default function Recipes() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
+  const [maxDifficulty, setMaxDifficulty] = useState<'easy' | 'medium' | 'difficult' | undefined>();
+
+  const { data: recipes = [], isLoading } = useQuery<Recipe[]>({
+    queryKey: ['recipes', searchQuery, selectedCuisines, maxDifficulty],
+    queryFn: () => searchRecipes({
+      q: searchQuery || undefined,
+      includeCuisines: selectedCuisines.length > 0 ? selectedCuisines : undefined,
+      maxDifficulty,
+    }),
   });
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
@@ -47,7 +52,7 @@ export default function Recipes() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Recipes</h1>
-          <p className="text-muted-foreground">Discover diabetes-friendly recipes from Spoonacular</p>
+          <p className="text-muted-foreground">Discover diabetes-friendly recipes tailored to your preferences</p>
         </div>
         <Button data-testid="button-add-recipe">
           <Plus className="h-4 w-4 mr-2" />
@@ -89,14 +94,14 @@ export default function Recipes() {
               key={recipe.id}
               id={recipe.id}
               title={recipe.title}
-              image={recipe.image || "https://via.placeholder.com/400x300?text=Recipe"}
-              time={recipe.readyInMinutes}
-              servings={recipe.servings}
-              carbs={recipe.carbs}
-              protein={recipe.protein}
-              fiber={recipe.fiber}
-              difficulty="Easy"
-              isT2DOptimized={recipe.isT2DOptimized}
+              image={recipe.image_url || "https://via.placeholder.com/400x300?text=Recipe"}
+              time={recipe.prep_time_minutes || 30}
+              servings={recipe.servings || 4}
+              carbs={recipe.carbs_g || 0}
+              protein={recipe.protein_g || 0}
+              fiber={recipe.fiber_g || 0}
+              difficulty={recipe.difficulty ? difficultyMap[recipe.difficulty] : 'Easy'}
+              isT2DOptimized={(recipe.carbs_g || 0) < 46 && (recipe.fiber_g || 0) >= 2 && (recipe.protein_g || 0) >= 14}
               onClick={() => console.log(`View recipe ${recipe.id}`)}
             />
           ))}
