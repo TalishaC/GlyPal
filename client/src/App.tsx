@@ -75,6 +75,8 @@ function Router() {
   // Not logged in - show auth flow
   if (!user) {
     console.log("Router: No user, showing auth flow");
+    console.log("Current URL:", window.location.href);
+    console.log("Current pathname:", window.location.pathname);
     const authRoutes = (
       <Switch>
         <Route path="/welcome">

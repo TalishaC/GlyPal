@@ -1,0 +1,672 @@
+Router: Returning auth routes
+Object
+
+$$typeof: Symbol(react.element)
+
+_owner: null
+
+key: null
+
+props: Object
+
+children: Array (4)
+0
+{$$typeof: Symbol(react.element), type: function, key: null, ref: null, props: Object, …}
+1
+{$$typeof: Symbol(react.element), type: function, key: null, ref: null, props: Object, …}
+2
+{$$typeof: Symbol(react.element), type: function, key: null, ref: null, props: Object, …}
+3
+{$$typeof: Symbol(react.element), type: function, key: null, ref: null, props: Object, …}
+
+Array Prototype
+
+at()
+
+concat(value, ...)
+
+constructor: function()
+
+copyWithin(targetIndex, startIndex, [endIndex=length])
+
+entries()
+
+every(callback, [thisArg])
+
+fill(value, [startIndex=0], [endIndex=length])
+
+filter(callback, [thisArg])
+
+find(callback, [thisArg])
+
+findIndex(callback, [thisArg])
+
+findLast(callback, [thisArg])
+
+findLastIndex(callback, [thisArg])
+
+flat()
+
+flatMap()
+
+forEach(callback, [thisArg])
+
+includes(searchValue, [startIndex=0])
+
+indexOf(searchValue, [startIndex=0])
+
+join([separator=","])
+
+keys()
+
+lastIndexOf(searchValue, [startIndex=length])
+
+length: 0
+
+map(callback, [thisArg])
+
+pop()
+
+push(value, ...)
+
+reduce(callback, [initialValue])
+
+reduceRight(callback, [initialValue])
+
+reverse()
+
+shift()
+
+slice([startIndex=0], [endIndex=length])
+
+some(callback, [thisArg])
+
+sort([compareFunction])
+
+splice(startIndex, [deleteCount=0], ...itemsToAdd)
+
+toLocaleString()
+
+toReversed()
+
+toSorted()
+
+toSpliced()
+
+toString()
+
+unshift()
+
+values()
+
+with()
+
+Symbol(Symbol.iterator)()
+
+Symbol(Symbol.unscopables): Object
+
+at: true
+
+copyWithin: true
+
+entries: true
+
+fill: true
+
+find: true
+
+findIndex: true
+
+findLast: true
+
+findLastIndex: true
+
+flat: true
+
+flatMap: true
+
+includes: true
+
+keys: true
+
+toReversed: true
+
+toSorted: true
+
+toSpliced: true
+
+values: true
+
+Object Prototype
+
+__defineGetter__(propertyName, getterFunction)
+
+__defineSetter__(propertyName, setterFunction)
+
+__lookupGetter__(propertyName)
+
+__lookupSetter__(propertyName)
+
+constructor: function()
+
+hasOwnProperty(propertyName)
+
+isPrototypeOf(property)
+
+propertyIsEnumerable(propertyName)
+
+toLocaleString()
+
+toString()
+
+valueOf()
+
+Object Prototype
+
+__defineGetter__(propertyName, getterFunction)
+
+__defineSetter__(propertyName, setterFunction)
+
+__lookupGetter__(propertyName)
+
+__lookupSetter__(propertyName)
+
+constructor: function()
+
+arguments: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+assign(target, ...sources)
+
+caller: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+create(prototype, [propertiesObject])
+
+defineProperties(object, properties)
+
+defineProperty(object, propertyName, descriptor)
+
+entries()
+
+freeze(object)
+
+fromEntries()
+
+getOwnPropertyDescriptor(object, propertyName)
+
+getOwnPropertyDescriptors()
+
+getOwnPropertyNames(object)
+
+getOwnPropertySymbols(object)
+
+getPrototypeOf(object)
+
+groupBy()
+
+hasOwn()
+
+is(value1, value2)
+
+isExtensible(object)
+
+isFrozen(object)
+
+isSealed(object)
+
+keys(object)
+
+length: 1
+
+name: "Object"
+
+preventExtensions(object)
+
+prototype: Object
+
+__defineGetter__()
+
+__defineSetter__()
+
+__lookupGetter__()
+
+__lookupSetter__()
+
+constructor: function()
+
+hasOwnProperty()
+
+isPrototypeOf()
+
+propertyIsEnumerable()
+
+toLocaleString()
+
+toString()
+
+valueOf()
+
+seal(object)
+
+setPrototypeOf(object, prototype)
+
+values()
+
+Function Prototype
+
+hasOwnProperty(propertyName)
+
+isPrototypeOf(property)
+
+propertyIsEnumerable(propertyName)
+
+toLocaleString()
+
+toString()
+
+valueOf()
+
+ref: null
+
+type: function()
+
+boundThis: undefined
+
+arguments: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+caller: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+length: 1
+
+name: "Bc"
+
+Function Prototype
+
+apply(thisObject, [argumentsArray])
+
+arguments
+
+bind(thisObject, ...arguments)
+
+call(thisObject, ...arguments)
+
+caller
+
+constructor: function()
+
+arguments: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+caller: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+length: 1
+
+name: "Function"
+
+prototype()
+
+Function Prototype
+
+apply(thisObject, [argumentsArray])
+
+arguments
+
+bind(thisObject, ...arguments)
+
+call(thisObject, ...arguments)
+
+caller
+
+constructor: function()
+
+arguments: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+caller: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+length: 1
+
+name: "Function"
+
+prototype()
+
+Function Prototype
+
+length: 0
+
+name: ""
+
+toString()
+
+Symbol(Symbol.hasInstance)()
+
+Object Prototype
+
+__defineGetter__(propertyName, getterFunction)
+
+__defineSetter__(propertyName, setterFunction)
+
+__lookupGetter__(propertyName)
+
+__lookupSetter__(propertyName)
+
+constructor: function()
+
+arguments: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+assign(target, ...sources)
+
+caller: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+create(prototype, [propertiesObject])
+
+defineProperties(object, properties)
+
+defineProperty(object, propertyName, descriptor)
+
+entries()
+
+freeze(object)
+
+fromEntries()
+
+getOwnPropertyDescriptor(object, propertyName)
+
+getOwnPropertyDescriptors()
+
+getOwnPropertyNames(object)
+
+getOwnPropertySymbols(object)
+
+getPrototypeOf(object)
+
+groupBy()
+
+hasOwn()
+
+is(value1, value2)
+
+isExtensible(object)
+
+isFrozen(object)
+
+isSealed(object)
+
+keys(object)
+
+length: 1
+
+name: "Object"
+
+preventExtensions(object)
+
+prototype: Object
+
+__defineGetter__()
+
+__defineSetter__()
+
+__lookupGetter__()
+
+__lookupSetter__()
+
+constructor: function()
+
+arguments: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+assign(target, ...sources)
+
+caller: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+create(prototype, [propertiesObject])
+
+defineProperties(object, properties)
+
+defineProperty(object, propertyName, descriptor)
+
+entries()
+
+freeze(object)
+
+fromEntries()
+
+getOwnPropertyDescriptor(object, propertyName)
+
+getOwnPropertyDescriptors()
+
+getOwnPropertyNames(object)
+
+getOwnPropertySymbols(object)
+
+getPrototypeOf(object)
+
+groupBy()
+
+hasOwn()
+
+is(value1, value2)
+
+isExtensible(object)
+
+isFrozen(object)
+
+isSealed(object)
+
+keys(object)
+
+length: 1
+
+name: "Object"
+
+preventExtensions(object)
+
+prototype: Object
+
+__defineGetter__()
+
+__defineSetter__()
+
+__lookupGetter__()
+
+__lookupSetter__()
+
+constructor: function()
+
+arguments: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+assign(target, ...sources)
+
+caller: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+create(prototype, [propertiesObject])
+
+defineProperties(object, properties)
+
+defineProperty(object, propertyName, descriptor)
+
+entries()
+
+freeze(object)
+
+fromEntries()
+
+getOwnPropertyDescriptor(object, propertyName)
+
+getOwnPropertyDescriptors()
+
+getOwnPropertyNames(object)
+
+getOwnPropertySymbols(object)
+
+getPrototypeOf(object)
+
+groupBy()
+
+hasOwn()
+
+is(value1, value2)
+
+isExtensible(object)
+
+isFrozen(object)
+
+isSealed(object)
+
+keys(object)
+
+length: 1
+
+name: "Object"
+
+preventExtensions(object)
+
+prototype: Object
+
+__defineGetter__()
+
+__defineSetter__()
+
+__lookupGetter__()
+
+__lookupSetter__()
+
+constructor: function()
+
+arguments: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+assign(target, ...sources)
+
+caller: TypeError: 'arguments', 'callee', and 'caller' cannot be accessed in this context.
+
+create(prototype, [propertiesObject])
+
+defineProperties(object, properties)
+
+defineProperty(object, propertyName, descriptor)
+
+entries()
+
+freeze(object)
+
+fromEntries()
+
+getOwnPropertyDescriptor(object, propertyName)
+
+getOwnPropertyDescriptors()
+
+getOwnPropertyNames(object)
+
+getOwnPropertySymbols(object)
+
+getPrototypeOf(object)
+
+groupBy()
+
+hasOwn()
+
+is(value1, value2)
+
+isExtensible(object)
+
+isFrozen(object)
+
+isSealed(object)
+
+keys(object)
+
+length: 1
+
+name: "Object"
+
+preventExtensions(object)
+
+prototype: {}
+
+seal(object)
+
+setPrototypeOf(object, prototype)
+
+values()
+
+Function Prototype
+
+hasOwnProperty()
+
+isPrototypeOf()
+
+propertyIsEnumerable()
+
+toLocaleString()
+
+toString()
+
+valueOf()
+
+seal(object)
+
+setPrototypeOf(object, prototype)
+
+values()
+
+Function Prototype
+
+hasOwnProperty()
+
+isPrototypeOf()
+
+propertyIsEnumerable()
+
+toLocaleString()
+
+toString()
+
+valueOf()
+
+seal(object)
+
+setPrototypeOf(object, prototype)
+
+values()
+
+Function Prototype
+
+hasOwnProperty()
+
+isPrototypeOf()
+
+propertyIsEnumerable()
+
+toLocaleString()
+
+toString()
+
+valueOf()
+
+seal(object)
+
+setPrototypeOf(object, prototype)
+
+values()
+
+Function Prototype
+
+hasOwnProperty(propertyName)
+
+isPrototypeOf(property)
+
+propertyIsEnumerable(propertyName)
+
+toLocaleString()
+
+toString()
+
+valueOf()
+
+length: 0
+
+name: ""
+
+toString()
+
+Symbol(Symbol.hasInstance)()
+
+Object Prototype
+
+Object Prototype
