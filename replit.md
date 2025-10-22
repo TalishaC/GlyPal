@@ -18,8 +18,10 @@ GlyPal is a wellness application designed for adults with type 2 diabetes and pr
 **October 22, 2025 - Production Deployment Fix & Security Improvements:**
 - 🔧 Fixed critical Wouter routing bug in production builds by replacing `<Switch>/<Route>` components with `useLocation` hook-based manual routing
 - 🔒 Removed hardcoded Supabase credentials from codebase; now exclusively uses VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables
+- 🗄️ **Switched from Supabase PostgreSQL to Replit's built-in PostgreSQL** for primary database (resolves connection timeout errors)
 - ✅ Published site (glypal.replit.app) now renders correctly with Welcome, Signup, and Login pages functional
 - 📝 Implemented useEffect-based navigation redirects to comply with React Hooks rules
+- 🧪 End-to-end tested signup and login flows - both working successfully with Replit PostgreSQL
 
 **October 17, 2025 - Comprehensive Onboarding & Nutrition Calculation System:**
 - ✅ Refactored database schema into separate normalized tables (settings, user_preferences, user_allergies, user_intolerances, user_cuisines, user_cross_contam)
@@ -69,13 +71,13 @@ Preferred communication style: Simple, everyday language.
 - `GET/POST/DELETE /api/meal-plans` - Weekly meal planning
 - `GET/POST/PATCH/DELETE /api/shopping-lists` - Shopping list management
 
-**Storage Layer:** Database storage (DbStorage) implemented using Supabase/PostgreSQL via Drizzle ORM. Handles all CRUD operations for users, BG readings, prescriptions, recipes, meal plans, and shopping lists.
+**Storage Layer:** Database storage (DbStorage) implemented using Replit's built-in PostgreSQL via Drizzle ORM. Handles all CRUD operations for users, BG readings, prescriptions, recipes, meal plans, and shopping lists. Supabase is used exclusively for recipe data via its client API (not for primary database storage).
 
 **Development Features:** Custom logging middleware for API requests, runtime error overlay in development, and Replit-specific plugins for enhanced developer experience.
 
 ### Data Storage Solutions
 
-**ORM:** Drizzle ORM configured for PostgreSQL with schema definitions and migrations support. Connection configured via Neon serverless driver.
+**ORM:** Drizzle ORM configured for Replit PostgreSQL with schema definitions and migrations support. Connection configured via `postgres` driver using DATABASE_URL environment variable automatically provided by Replit.
 
 **Database Schema:** Comprehensive multi-table schema with:
 - **users:** Core user table with username, password, locale, birth year, units (imperial/metric), budget tier, senior default flag, and onboarding completion status
