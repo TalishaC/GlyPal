@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Activity, Heart, Calendar, ShoppingCart } from "lucide-react";
 
 export default function Welcome() {
+  console.log("Welcome page rendering!");
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
       <div className="max-w-4xl w-full space-y-8">

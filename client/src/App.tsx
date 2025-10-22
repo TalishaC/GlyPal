@@ -75,19 +75,36 @@ function Router() {
   // Not logged in - show auth flow
   if (!user) {
     console.log("Router: No user, showing auth flow");
-    return (
+    const authRoutes = (
       <Switch>
-        <Route path="/welcome" component={Welcome} />
-        <Route path="/login" component={Login} />
-        <Route path="/signup" component={Signup} />
+        <Route path="/welcome">
+          {() => {
+            console.log("Route /welcome matched!");
+            return <Welcome />;
+          }}
+        </Route>
+        <Route path="/login">
+          {() => {
+            console.log("Route /login matched!");
+            return <Login />;
+          }}
+        </Route>
+        <Route path="/signup">
+          {() => {
+            console.log("Route /signup matched!");
+            return <Signup />;
+          }}
+        </Route>
         <Route path="/:rest*">
           {() => {
-            console.log("Router: Redirecting to /welcome");
+            console.log("Router: Catch-all route matched, redirecting to /welcome");
             return <Redirect to="/welcome" />;
           }}
         </Route>
       </Switch>
     );
+    console.log("Router: Returning auth routes", authRoutes);
+    return authRoutes;
   }
 
   // Logged in but onboarding incomplete
