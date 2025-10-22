@@ -1,5 +1,5 @@
-import React from "react";
-import { Switch, Route, Redirect } from "wouter";
+import React, { useEffect } from "react";
+import { useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -24,6 +24,17 @@ import Onboarding from "@/pages/Onboarding";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
+  const [location] = useLocation();
+  
+  // Manual routing - works in production unlike Switch/Route
+  let PageComponent = Dashboard;
+  if (location === "/planner") PageComponent = MealPlanner;
+  else if (location === "/recipes") PageComponent = Recipes;
+  else if (location === "/log-bg") PageComponent = LogBG;
+  else if (location === "/prescriptions") PageComponent = Prescriptions;
+  else if (location === "/shopping") PageComponent = Shopping;
+  else if (location !== "/") PageComponent = NotFound;
+  
   return (
     <SidebarProvider style={{ "--sidebar-width": "16rem" } as React.CSSProperties}>
       <div className="flex h-screen w-full">
@@ -38,15 +49,7 @@ function AuthenticatedApp() {
           </header>
           <main className="flex-1 overflow-auto p-8">
             <div className="max-w-7xl mx-auto">
-              <Switch>
-                <Route path="/" component={Dashboard} />
-                <Route path="/planner" component={MealPlanner} />
-                <Route path="/recipes" component={Recipes} />
-                <Route path="/log-bg" component={LogBG} />
-                <Route path="/prescriptions" component={Prescriptions} />
-                <Route path="/shopping" component={Shopping} />
-                <Route component={NotFound} />
-              </Switch>
+              <PageComponent />
             </div>
           </main>
         </div>
@@ -57,8 +60,18 @@ function AuthenticatedApp() {
 
 function Router() {
   const { user, isLoading } = useAuth();
+  const [location, setLocation] = useLocation();
   
   console.log("Router rendering", { user, isLoading });
+
+  // Handle redirects in useEffect to avoid state updates during render
+  useEffect(() => {
+    if (!isLoading && !user && location !== "/welcome" && location !== "/login" && location !== "/signup") {
+      setLocation("/welcome");
+    } else if (!isLoading && user && !user.onboardingCompleted && location !== "/onboarding") {
+      setLocation("/onboarding");
+    }
+  }, [user, isLoading, location, setLocation]);
 
   if (isLoading) {
     console.log("Router: Showing loading state");
@@ -71,29 +84,18 @@ function Router() {
       </div>
     );
   }
-
+  
   // Not logged in - show auth flow
   if (!user) {
-    console.log("Router: No user, showing auth flow");
-    console.log("Current URL:", window.location.href);
-    console.log("Current pathname:", window.location.pathname);
-    
-    // TEMPORARY: Bypass Wouter routing bug in production
-    // Just render Welcome directly to test if component rendering works
-    console.log("TEMP FIX: Rendering Welcome directly without routing");
+    // Manual routing - works in production
+    if (location === "/login") return <Login />;
+    if (location === "/signup") return <Signup />;
     return <Welcome />;
   }
 
   // Logged in but onboarding incomplete
   if (!user.onboardingCompleted) {
-    return (
-      <Switch>
-        <Route path="/onboarding" component={Onboarding} />
-        <Route path="/:rest*">
-          {() => <Redirect to="/onboarding" />}
-        </Route>
-      </Switch>
-    );
+    return <Onboarding />;
   }
 
   // Logged in and onboarding complete - show main app
