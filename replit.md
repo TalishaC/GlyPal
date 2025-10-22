@@ -15,6 +15,12 @@ GlyPal is a wellness application designed for adults with type 2 diabetes and pr
 
 ## Recent Changes
 
+**October 22, 2025 - Production Deployment Fix & Security Improvements:**
+- 🔧 Fixed critical Wouter routing bug in production builds by replacing `<Switch>/<Route>` components with `useLocation` hook-based manual routing
+- 🔒 Removed hardcoded Supabase credentials from codebase; now exclusively uses VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables
+- ✅ Published site (glypal.replit.app) now renders correctly with Welcome, Signup, and Login pages functional
+- 📝 Implemented useEffect-based navigation redirects to comply with React Hooks rules
+
 **October 17, 2025 - Comprehensive Onboarding & Nutrition Calculation System:**
 - ✅ Refactored database schema into separate normalized tables (settings, user_preferences, user_allergies, user_intolerances, user_cuisines, user_cross_contam)
 - ✅ Implemented BMR/TDEE calculation engine using Mifflin-St Jeor formula with activity level multipliers (1.2-1.9)
@@ -37,7 +43,7 @@ Preferred communication style: Simple, everyday language.
 
 **UI Component System:** Shadcn/ui components built on Radix UI primitives with Tailwind CSS for styling. The design system implements a healthcare-optimized variant of Material Design 3, prioritizing clarity, accessibility, and trust. Custom color tokens support both light and dark modes with semantic colors for BG status indicators (in-range, high, low, urgent).
 
-**Routing:** Wouter for lightweight client-side routing with dedicated pages for Dashboard, Meal Planner, Recipes, BG Logging, Prescriptions, and Shopping.
+**Routing:** Wouter for lightweight client-side routing with dedicated pages for Dashboard, Meal Planner, Recipes, BG Logging, Prescriptions, and Shopping. Uses `useLocation` hook-based manual routing (instead of `<Switch>/<Route>` components) for production build compatibility.
 
 **State Management:** TanStack React Query (v5) for server state management with custom query client configuration. Local UI state handled through React hooks and Context API for theme and language preferences.
 
