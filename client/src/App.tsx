@@ -77,36 +77,11 @@ function Router() {
     console.log("Router: No user, showing auth flow");
     console.log("Current URL:", window.location.href);
     console.log("Current pathname:", window.location.pathname);
-    const authRoutes = (
-      <Switch>
-        <Route path="/welcome">
-          {() => {
-            console.log("Route /welcome matched!");
-            return <Welcome />;
-          }}
-        </Route>
-        <Route path="/login">
-          {() => {
-            console.log("Route /login matched!");
-            return <Login />;
-          }}
-        </Route>
-        <Route path="/signup">
-          {() => {
-            console.log("Route /signup matched!");
-            return <Signup />;
-          }}
-        </Route>
-        <Route path="/:rest*">
-          {() => {
-            console.log("Router: Catch-all route matched, redirecting to /welcome");
-            return <Redirect to="/welcome" />;
-          }}
-        </Route>
-      </Switch>
-    );
-    console.log("Router: Returning auth routes", authRoutes);
-    return authRoutes;
+    
+    // TEMPORARY: Bypass Wouter routing bug in production
+    // Just render Welcome directly to test if component rendering works
+    console.log("TEMP FIX: Rendering Welcome directly without routing");
+    return <Welcome />;
   }
 
   // Logged in but onboarding incomplete
