@@ -1,5 +1,5 @@
 import React from "react";
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -57,12 +57,14 @@ function AuthenticatedApp() {
 
 function Router() {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
   
-  console.log("Router rendering", { user, isLoading });
+  console.log("Router rendering", { user, isLoading, location });
 
   if (isLoading) {
+    console.log("Router: Showing loading state");
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-muted-foreground">Loading...</p>
@@ -73,13 +75,17 @@ function Router() {
 
   // Not logged in - show auth flow
   if (!user) {
+    console.log("Router: No user, showing auth flow at", location);
     return (
       <Switch>
         <Route path="/welcome" component={Welcome} />
         <Route path="/login" component={Login} />
         <Route path="/signup" component={Signup} />
         <Route path="/:rest*">
-          {() => <Redirect to="/welcome" />}
+          {() => {
+            console.log("Router: Redirecting to /welcome from", location);
+            return <Redirect to="/welcome" />;
+          }}
         </Route>
       </Switch>
     );
