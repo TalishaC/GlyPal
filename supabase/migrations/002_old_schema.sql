@@ -1,8 +1,7 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, decimal, boolean, jsonb, real, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, decimal, boolean, jsonb, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-
 
 // ==================== USERS TABLE ====================
 export const users = pgTable("users", {
@@ -11,15 +10,11 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   locale: text("locale").default("en-US"),
   birthYear: integer("birth_year"),
-  units: text("units").default("imperial"),
-  budgetTier: text("budget_tier").default("Moderate"),
+  units: text("units").default("imperial"), // imperial | metric
+  budgetTier: text("budget_tier").default("Moderate"), // Budget | Moderate | Foodie
   isSeniorDefault: boolean("is_senior_default").default(false),
   onboardingCompleted: boolean("onboarding_completed").default(false),
-}, (table) => ({
-  // Index for username lookups (login)
-  usernameIdx: index("users_username_idx").on(table.username),
-}));
-
+});
 
 // ==================== SETTINGS TABLE ====================
 export const settings = pgTable("settings", {
@@ -32,58 +27,46 @@ export const settings = pgTable("settings", {
   macroSplitJson: jsonb("macro_split_json").default({ carb_pct: 0.35, protein_pct: 0.30, fat_pct: 0.35 }),
   calorieTargetKcal: integer("calorie_target_kcal"),
   guardrailsJson: jsonb("guardrails_json").default({ carb_max_g: 46, fiber_min_g: 2, protein_min_g: 14, satfat_max_g: 11 }),
-  goalIntensityPct: real("goal_intensity_pct"),
-}, (table) => ({
-  // Index for user settings lookup
-  userIdIdx: index("settings_user_id_idx").on(table.userId),
-}));
+  goalIntensityPct: real("goal_intensity_pct"), // 0.10|0.15|0.20 for lose/gain
+});
 
 // ==================== USER PREFERENCES TABLE ====================
 export const userPreferences = pgTable("user_preferences", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
-  sexAtBirth: text("sex_at_birth"),
+  sexAtBirth: text("sex_at_birth"), // Female | Male | Prefer not to say
   heightFt: integer("height_ft"),
   heightIn: integer("height_in"),
   heightCm: real("height_cm"),
   weightLb: real("weight_lb"),
   weightKg: real("weight_kg"),
-  activityLevel: text("activity_level"),
-  goal: text("goal").default("maintain"),
+  activityLevel: text("activity_level"), // sedentary | lightly_active | moderately_active | very_active | extra_active
+  goal: text("goal").default("maintain"), // maintain | lose | gain
   dietaryPattern: text("dietary_pattern").default("No preference"),
   timePerMeal: text("time_per_meal").default("≤30 min"),
   cookingSkill: text("cooking_skill").default("Beginner"),
-}, (table) => ({
-  userIdIdx: index("user_preferences_user_id_idx").on(table.userId),
-}));
+});
 
 // ==================== USER ALLERGIES TABLE ====================
 export const userAllergies = pgTable("user_allergies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   allergen: text("allergen").notNull(),
-}, (table) => ({
-  // Index for getting all user allergies
-  userIdIdx: index("user_allergies_user_id_idx").on(table.userId),
-}));
+});
 
 // ==================== USER INTOLERANCES TABLE ====================
 export const userIntolerances = pgTable("user_intolerances", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   intolerance: text("intolerance").notNull(),
-}, (table) => ({
-  userIdIdx: index("user_intolerances_user_id_idx").on(table.userId),
-}));
+});
 
 // ==================== USER CUISINES TABLE ====================
 export const userCuisines = pgTable("user_cuisines", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   cuisine: text("cuisine").notNull(),
-}, (table) => ({
-  userIdIdx: index("user_cuisines_user_id_idx").on(table.userId),
-}));
+});
 
 // ==================== USER CROSS CONTAMINATION TABLE ====================
 export const userCrossContam = pgTable("user_cross_contam", {
@@ -92,24 +75,16 @@ export const userCrossContam = pgTable("user_cross_contam", {
   mayContain: boolean("may_contain").default(false),
   sharedEquipment: boolean("shared_equipment").default(false),
   sharedFacility: boolean("shared_facility").default(false),
-}, (table) => ({
-  userIdIdx: index("user_cross_contam_user_id_idx").on(table.userId),
-}));
+});
 
 // ==================== BG READINGS TABLE ====================
-// THIS IS THE MOST IMPORTANT ONE - BG readings are queried constantly!
 export const bgReadings = pgTable("bg_readings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   value: integer("value").notNull(),
   mealContext: text("meal_context"),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-}, (table) => ({
-  // Composite index for userId + timestamp (most common query pattern)
-  userTimestampIdx: index("bg_readings_user_timestamp_idx").on(table.userId, table.timestamp),
-  // Separate timestamp index for date range queries
-  timestampIdx: index("bg_readings_timestamp_idx").on(table.timestamp),
-}));
+});
 
 // ==================== PRESCRIPTIONS TABLE ====================
 export const prescriptions = pgTable("prescriptions", {
@@ -119,29 +94,19 @@ export const prescriptions = pgTable("prescriptions", {
   dose: text("dose").notNull(),
   scheduleTime: text("schedule_time").notNull(),
   isActive: boolean("is_active").default(true),
-}, (table) => ({
-  // Index for getting user's prescriptions
-  userIdIdx: index("prescriptions_user_id_idx").on(table.userId),
-  // Index for filtering active prescriptions
-  userActiveIdx: index("prescriptions_user_active_idx").on(table.userId, table.isActive),
-}));
+});
 
 export const prescriptionLogs = pgTable("prescription_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   prescriptionId: varchar("prescription_id").notNull().references(() => prescriptions.id, { onDelete: "cascade" }),
   takenAt: timestamp("taken_at").notNull().defaultNow(),
-}, (table) => ({
-  // Index for getting logs by prescription
-  prescriptionIdIdx: index("prescription_logs_prescription_id_idx").on(table.prescriptionId),
-  // Index for date-based adherence queries
-  takenAtIdx: index("prescription_logs_taken_at_idx").on(table.takenAt),
-}));
+});
 
 // ==================== RECIPES TABLE ====================
 export const recipes = pgTable("recipes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
-  spoonacularId: integer("spoonacular_id").unique(),
+  spoonacularId: integer("spoonacular_id").unique(), // Track external source
   title: text("title").notNull(),
   image: text("image").notNull(),
   time: integer("time").notNull(),
@@ -154,30 +119,16 @@ export const recipes = pgTable("recipes", {
   isT2DOptimized: boolean("is_t2d_optimized").default(false),
   ingredients: jsonb("ingredients"),
   instructions: jsonb("instructions"),
-}, (table) => ({
-  // Index for user's custom recipes
-  userIdIdx: index("recipes_user_id_idx").on(table.userId),
-  // Index for Spoonacular ID lookups (to avoid duplicates)
-  spoonacularIdIdx: index("recipes_spoonacular_id_idx").on(table.spoonacularId),
-  // Index for finding T2D optimized recipes
-  t2dOptimizedIdx: index("recipes_t2d_optimized_idx").on(table.isT2DOptimized),
-}));
+});
 
 // ==================== MEAL PLANS TABLE ====================
-// CRITICAL: Meal plans are queried by date range constantly
 export const mealPlans = pgTable("meal_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   date: timestamp("date").notNull(),
   mealType: text("meal_type").notNull(),
   recipeId: varchar("recipe_id").references(() => recipes.id, { onDelete: "set null" }),
-}, (table) => ({
-  // Composite index for user + date range queries (most common)
-  userDateIdx: index("meal_plans_user_date_idx").on(table.userId, table.date),
-  // Index for recipe lookups
-  recipeIdIdx: index("meal_plans_recipe_id_idx").on(table.recipeId),
-}));
-
+});
 
 // ==================== SHOPPING LISTS TABLE ====================
 export const shoppingLists = pgTable("shopping_lists", {
@@ -188,12 +139,7 @@ export const shoppingLists = pgTable("shopping_lists", {
   category: text("category").notNull(),
   isChecked: boolean("is_checked").default(false),
   weekStart: timestamp("week_start").notNull(),
-}, (table) => ({
-  // Composite index for user + week queries
-  userWeekIdx: index("shopping_lists_user_week_idx").on(table.userId, table.weekStart),
-  // Index for category grouping
-  categoryIdx: index("shopping_lists_category_idx").on(table.category),
-}));
+});
 
 // ==================== INSERT SCHEMAS ====================
 export const insertUserSchema = createInsertSchema(users).omit({
