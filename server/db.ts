@@ -17,11 +17,15 @@ if (process.env.REPLIT_DEPLOYMENT && process.env.REPLIT_CONNECTORS_HOSTNAME) {
 }
 
 // Production-ready connection with timeout and retry handling
+console.log('[DB] Connecting to database:', databaseUrl?.replace(/:[^:@]+@/, ':****@')); // Log URL with password hidden
+
 const client = postgres(databaseUrl, {
   max: 10, // Connection pool size
   idle_timeout: 30, // Close idle connections after 30 seconds
-  connect_timeout: 15, // Wait up to 15 seconds for connection (handles database wake-up)
+  connect_timeout: 30, // Wait up to 30 seconds for connection (handles database wake-up)
   max_lifetime: 60 * 30, // Recycle connections after 30 minutes
+  onnotice: () => {}, // Suppress notices
+  debug: false,
 });
 
 export const db = drizzle(client, { schema });
