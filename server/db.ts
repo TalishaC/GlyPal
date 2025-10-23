@@ -16,5 +16,12 @@ if (process.env.REPLIT_DEPLOYMENT && process.env.REPLIT_CONNECTORS_HOSTNAME) {
   throw new Error("DATABASE_URL environment variable is not set and REPLIT_CONNECTORS_HOSTNAME is not available");
 }
 
-const client = postgres(databaseUrl);
+// Production-ready connection with timeout and retry handling
+const client = postgres(databaseUrl, {
+  max: 10, // Connection pool size
+  idle_timeout: 30, // Close idle connections after 30 seconds
+  connect_timeout: 15, // Wait up to 15 seconds for connection (handles database wake-up)
+  max_lifetime: 60 * 30, // Recycle connections after 30 minutes
+});
+
 export const db = drizzle(client, { schema });
