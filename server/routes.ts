@@ -567,6 +567,7 @@ export function registerRoutes(app: Express) {
       const user = await storage.createUser({
         username,
         password, // TODO: Hash password in production
+        onboardingCompleted: false, // Ensure user goes through onboarding
       });
 
       // Don't send password
