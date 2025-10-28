@@ -83,15 +83,16 @@ export default function Recipes() {
       userId: user?.id,
       title: formData.get("title") as string,
       image: (formData.get("image") as string) || "https://via.placeholder.com/400x300?text=Recipe",
-      readyInMinutes: parseInt(formData.get("readyInMinutes") as string) || 30,
+      time: parseInt(formData.get("readyInMinutes") as string) || 30,
       servings: parseInt(formData.get("servings") as string) || 4,
-      carbs: parseInt(formData.get("carbs") as string) || 0,
-      protein: parseInt(formData.get("protein") as string) || 0,
-      fiber: parseInt(formData.get("fiber") as string) || 0,
-      saturatedFat: parseInt(formData.get("saturatedFat") as string) || 0,
+      carbs: (formData.get("carbs") as string) || "0",
+      protein: (formData.get("protein") as string) || "0",
+      fiber: (formData.get("fiber") as string) || "0",
+      satFat: (formData.get("saturatedFat") as string) || "0",
       instructions: formData.get("instructions") as string,
       ingredients: (formData.get("ingredients") as string)?.split('\n').filter(i => i.trim()),
       isT2DOptimized: isNewRecipeT2DOptimized,
+      difficulty: "Easy",
     };
 
     try {
@@ -103,6 +104,7 @@ export default function Recipes() {
       toast({
         title: "Recipe added!",
         description: "Your recipe has been saved successfully.",
+        duration: 5000,
       });
       (e.target as HTMLFormElement).reset();
     } catch (error) {

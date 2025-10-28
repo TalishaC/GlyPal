@@ -285,10 +285,12 @@ export function registerRoutes(app: Express) {
   // Create a new recipe
   app.post("/api/recipes", async (req: Request, res: Response) => {
     try {
+      console.log('[POST /api/recipes] Received body:', JSON.stringify(req.body, null, 2));
       const validated = insertRecipeSchema.parse(req.body);
       const recipe = await storage.createRecipe(validated);
       res.status(201).json(recipe);
     } catch (error) {
+      console.error('[POST /api/recipes] Validation error:', error);
       handleError(res, error, "Failed to create recipe");
     }
   });
