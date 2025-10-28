@@ -15,6 +15,19 @@ GlyPal is a wellness application designed for adults with type 2 diabetes and pr
 
 ## Recent Changes
 
+**October 28, 2025 - Recipes Page Complete Rebuild with Full CRUD:**
+- 🎨 **Completely rebuilt Recipes page** with full CRUD functionality:
+  - ✅ Click-to-view recipe details dialog with nutrition breakdown, ingredients, and instructions
+  - ✅ Multi-criteria filtering: max carbs, min protein, max time, T2D optimized only (with accurate badge count)
+  - ✅ Add Recipe dialog with comprehensive form (title, time, servings, nutrition, ingredients, instructions)
+  - ✅ T2D optimization toggle for marking diabetes-friendly recipes
+  - ✅ Form state reset after successful submission
+  - ✅ 5-second success toast for better UX and E2E test reliability
+- 🔧 **Fixed PostgreSQL decimal field handling**: All nutrition values (carbs, protein, fiber, satFat) must be sent as strings to match PostgreSQL decimal type precision requirements
+- 🐛 **Fixed TypeScript error in storage.ts**: Moved getBGTrends and related methods inside DbStorage class to resolve scoping issues
+- ✅ **End-to-end tested**: Recipe creation, viewing, filtering, and search all working correctly with Replit PostgreSQL
+- 📊 **Architectural clarification**: All recipes stored in Replit PostgreSQL (Supabase only used for external API integration, not primary storage)
+
 **October 22, 2025 - Production Deployment Fix & Security Improvements:**
 - 🔧 Fixed critical Wouter routing bug in production builds by replacing `<Switch>/<Route>` components with `useLocation` hook-based manual routing
 - 🔒 Removed hardcoded Supabase credentials from codebase; now exclusively uses VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables
