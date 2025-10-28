@@ -1,4 +1,5 @@
 import { RecipeCard } from "@/components/RecipeCard";
+import { AddRecipeDialog } from "@/components/AddRecipeDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Filter, Plus } from "lucide-react";
@@ -22,8 +23,9 @@ interface Recipe {
 
 export default function Recipes() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
-  const { data: recipes = [], isLoading } = useQuery<Recipe[]>({
+  const { data: recipes = [], isLoading, refetch } = useQuery<Recipe[]>({
     queryKey: ['/api/recipes/search', searchQuery],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -52,7 +54,7 @@ export default function Recipes() {
           <h1 className="text-3xl font-bold mb-2">Recipes</h1>
           <p className="text-muted-foreground">Discover diabetes-friendly recipes tailored to your preferences</p>
         </div>
-        <Button data-testid="button-add-recipe">
+        <Button onClick={() => setShowAddDialog(true)} data-testid="button-add-recipe">
           <Plus className="h-4 w-4 mr-2" />
           Add Recipe
         </Button>
@@ -105,6 +107,12 @@ export default function Recipes() {
           ))}
         </div>
       )}
+
+      <AddRecipeDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }

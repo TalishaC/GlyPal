@@ -1,12 +1,13 @@
-import { 
-  LayoutDashboard, 
-  CalendarDays, 
-  BookOpen, 
-  Activity, 
+import {
+  LayoutDashboard,
+  CalendarDays,
+  BookOpen,
+  Activity,
   Pill,
   ShoppingCart,
   Settings,
-  Home
+  Home,
+  Shield
 } from "lucide-react";
 import {
   Sidebar,
@@ -20,6 +21,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 
 const menuItems = [
@@ -57,6 +59,7 @@ const menuItems = [
 
 export function AppSidebar() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [location] = useLocation();
 
   return (
@@ -76,8 +79,8 @@ export function AppSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
+                  <SidebarMenuButton
+                    asChild
                     isActive={location === item.url}
                     data-testid={`link-${item.title.toLowerCase()}`}
                   >
@@ -91,7 +94,29 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        
+
+        {user?.isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/admin/recipes"}
+                    data-testid="link-admin-recipes"
+                  >
+                    <a href="/admin/recipes">
+                      <Shield />
+                      <span>Manage Recipes</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
