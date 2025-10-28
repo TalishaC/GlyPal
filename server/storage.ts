@@ -451,6 +451,187 @@ export class DbStorage implements IStorage {
       await db.insert(shoppingLists).values(items);
     }
   }
+
+  // ==================== ANALYTICS METHODS ====================
+
+  /**
+   * Get detailed BG trends for analytics dashboard
+   */
+  async getBGTrends(userId: string, days: number): Promise<{
+  daily: Array<{ date: string; avg: number; min: number; max: number; count: number }>;
+  byMealContext: Array<{ context: string; avg: number; min: number; max: number; count: number }>;
+  hourly: Array<{ hour: number; avg: number; count: number }>;
+  summary: {
+    overall_avg: number;
+    std_dev: number;
+    cv: number;
+    time_in_range: number;
+    time_below_range: number;
+    time_above_range: number;
+    estimated_a1c: number;
+  };
+}> {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const readings = await db
+    .select()
+    .from(bgReadings)
+    .where(
+      and(
+        eq(bgReadings.userId, userId),
+        gte(bgReadings.timestamp, startDate)
+      )
+    )
+    .orderBy(bgReadings.timestamp);
+
+  if (readings.length === 0) {
+    return {
+      daily: [],
+      byMealContext: [],
+      hourly: [],
+      summary: {
+        overall_avg: 0,
+        std_dev: 0,
+        cv: 0,
+        time_in_range: 0,
+        time_below_range: 0,
+        time_above_range: 0,
+        estimated_a1c: 0,
+      },
+    };
+  }
+
+  // Get user settings for thresholds
+  const userSettings = await this.getSettings(userId);
+  const bgLow = userSettings?.bgLow ?? 70;
+  const bgHigh = userSettings?.bgHigh ?? 180;
+
+  // === DAILY AGGREGATION ===
+  const dailyMap = new Map<string, number[]>();
+  const contextMap = new Map<string, number[]>();
+  const hourlyMap = new Map<number, number[]>();
+
+  readings.forEach(r => {
+    // Daily grouping
+    const date = new Date(r.timestamp).toISOString().split('T')[0];
+    if (!dailyMap.has(date)) {
+      dailyMap.set(date, []);
+    }
+    dailyMap.get(date)!.push(r.value);
+
+    // Meal context grouping
+    const context = r.mealContext || 'Unknown';
+    if (!contextMap.has(context)) {
+      contextMap.set(context, []);
+    }
+    contextMap.get(context)!.push(r.value);
+
+    // Hourly grouping
+    const hour = new Date(r.timestamp).getHours();
+    if (!hourlyMap.has(hour)) {
+      hourlyMap.set(hour, []);
+    }
+    hourlyMap.get(hour)!.push(r.value);
+  });
+
+  // Calculate daily stats
+  const daily = Array.from(dailyMap.entries())
+    .map(([date, values]) => ({
+      date,
+      avg: Math.round(values.reduce((a, b) => a + b, 0) / values.length),
+      min: Math.min(...values),
+      max: Math.max(...values),
+      count: values.length,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Calculate meal context stats
+  const byMealContext = Array.from(contextMap.entries()).map(([context, values]) => ({
+    context,
+    avg: Math.round(values.reduce((a, b) => a + b, 0) / values.length),
+    min: Math.min(...values),
+    max: Math.max(...values),
+    count: values.length,
+  }));
+
+  // Calculate hourly stats
+  const hourly = Array.from(hourlyMap.entries())
+    .map(([hour, values]) => ({
+      hour,
+      avg: Math.round(values.reduce((a, b) => a + b, 0) / values.length),
+      count: values.length,
+    }))
+    .sort((a, b) => a.hour - b.hour);
+
+  // === SUMMARY STATISTICS ===
+  const allValues = readings.map(r => r.value);
+  const overall_avg = allValues.reduce((a, b) => a + b, 0) / allValues.length;
+
+  // Standard deviation
+  const squaredDiffs = allValues.map(v => Math.pow(v - overall_avg, 2));
+  const variance = squaredDiffs.reduce((a, b) => a + b, 0) / allValues.length;
+  const std_dev = Math.sqrt(variance);
+
+  // Coefficient of variation (CV) - glucose variability metric
+  const cv = (std_dev / overall_avg) * 100;
+
+  // Time in range calculations
+  const inRange = allValues.filter(v => v >= bgLow && v <= bgHigh).length;
+  const belowRange = allValues.filter(v => v < bgLow).length;
+  const aboveRange = allValues.filter(v => v > bgHigh).length;
+
+  const time_in_range = Math.round((inRange / allValues.length) * 100);
+  const time_below_range = Math.round((belowRange / allValues.length) * 100);
+  const time_above_range = Math.round((aboveRange / allValues.length) * 100);
+
+  // Estimated A1C from average glucose
+  // Formula: A1C ≈ (average_bg + 46.7) / 28.7
+  const estimated_a1c = Math.round(((overall_avg + 46.7) / 28.7) * 10) / 10;
+
+  return {
+    daily,
+    byMealContext,
+    hourly,
+    summary: {
+      overall_avg: Math.round(overall_avg),
+      std_dev: Math.round(std_dev * 10) / 10,
+      cv: Math.round(cv * 10) / 10,
+      time_in_range,
+      time_below_range,
+      time_above_range,
+      estimated_a1c,
+    },
+  };
+  }
+
+  /**
+   * Get settings for a user
+   */
+  async getSettings(userId: string): Promise<Settings | undefined> {
+    const result = await db.select().from(settings).where(eq(settings.userId, userId));
+    return result[0];
+  }
+
+  /**
+   * Update settings for a user
+   */
+  async updateSettings(userId: string, data: Partial<InsertSettings>): Promise<Settings | undefined> {
+    const result = await db
+      .update(settings)
+      .set(data)
+      .where(eq(settings.userId, userId))
+      .returning();
+    return result[0];
+  }
+
+  /**
+   * Get user preferences
+   */
+  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
+    const result = await db.select().from(userPreferences).where(eq(userPreferences.userId, userId));
+    return result[0];
+  }
 }
 
 export const storage = new DbStorage();
