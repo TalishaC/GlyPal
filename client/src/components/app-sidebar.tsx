@@ -7,7 +7,8 @@ import {
   ShoppingCart,
   Settings,
   Home,
-  Shield
+  Shield,
+  LogOut
 } from "lucide-react";
 import {
   Sidebar,
@@ -59,8 +60,13 @@ const menuItems = [
 
 export function AppSidebar() {
   const { t } = useLanguage();
-  const { user } = useAuth();
-  const [location] = useLocation();
+  const { user, logout } = useAuth();
+  const [location, setLocation] = useLocation();
+
+  const handleLogout = () => {
+    logout();
+    setLocation("/welcome");
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -126,6 +132,12 @@ export function AppSidebar() {
                     <Settings />
                     <span>{t("settings")}</span>
                   </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleLogout} data-testid="button-logout">
+                  <LogOut />
+                  <span>Logout</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
