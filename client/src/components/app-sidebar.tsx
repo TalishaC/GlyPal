@@ -1,12 +1,14 @@
-import { 
-  LayoutDashboard, 
-  CalendarDays, 
-  BookOpen, 
-  Activity, 
+import {
+  LayoutDashboard,
+  CalendarDays,
+  BookOpen,
+  Activity,
   Pill,
   ShoppingCart,
   Settings,
-  Home
+  Home,
+  Shield,
+  LogOut
 } from "lucide-react";
 import {
   Sidebar,
@@ -20,6 +22,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 
 const menuItems = [
@@ -57,7 +60,13 @@ const menuItems = [
 
 export function AppSidebar() {
   const { t } = useLanguage();
-  const [location] = useLocation();
+  const { user, logout } = useAuth();
+  const [location, setLocation] = useLocation();
+
+  const handleLogout = () => {
+    logout();
+    setLocation("/welcome");
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -76,8 +85,8 @@ export function AppSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
+                  <SidebarMenuButton
+                    asChild
                     isActive={location === item.url}
                     data-testid={`link-${item.title.toLowerCase()}`}
                   >
@@ -91,7 +100,29 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        
+
+        {user?.isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/admin/recipes"}
+                    data-testid="link-admin-recipes"
+                  >
+                    <a href="/admin/recipes">
+                      <Shield />
+                      <span>Manage Recipes</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -101,6 +132,12 @@ export function AppSidebar() {
                     <Settings />
                     <span>{t("settings")}</span>
                   </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleLogout} data-testid="button-logout">
+                  <LogOut />
+                  <span>Logout</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   budgetTier: text("budget_tier").default("Moderate"),
   isSeniorDefault: boolean("is_senior_default").default(false),
   onboardingCompleted: boolean("onboarding_completed").default(false),
+  isAdmin: boolean("is_admin").default(false),
 }, (table) => ({
   // Index for username lookups (login)
   usernameIdx: index("users_username_idx").on(table.username),

@@ -10,6 +10,7 @@ import {
 } from "@shared/schema";
 import { searchRecipes, getRecipeDetails, extractNutritionInfo, isT2DOptimized } from "./spoonacular";
 import { mifflinStJeor, tdee, adjustByGoal, convertToMetric, type ActivityLevel } from "./nutrition-calc";
+import { scrapeRecipe, isScrapedRecipeT2DOptimized } from "./recipe-scraper";
 import { z } from "zod";
 
 // Utility for error responses
@@ -377,6 +378,46 @@ export function registerRoutes(app: Express) {
     } catch (error) {
       console.error('[POST /api/recipes] Validation error:', error);
       handleError(res, error, "Failed to create recipe");
+    }
+  });
+
+  // Scrape recipe from URL
+  app.post("/api/recipes/scrape", async (req: Request, res: Response) => {
+    try {
+      const { url, userId } = req.body;
+
+      if (!url) {
+        return res.status(400).json({ error: "URL is required" });
+      }
+
+      // Scrape the recipe
+      const scrapedRecipe = await scrapeRecipe(url);
+
+      // Create recipe in database
+      const recipeData = {
+        userId: userId || null,
+        title: scrapedRecipe.title,
+        image: scrapedRecipe.image || "https://via.placeholder.com/400x300?text=Recipe",
+        time: scrapedRecipe.time || 30,
+        servings: scrapedRecipe.servings || 4,
+        carbs: String(scrapedRecipe.carbs || 0),
+        protein: String(scrapedRecipe.protein || 0),
+        fiber: String(scrapedRecipe.fiber || 0),
+        satFat: String(scrapedRecipe.satFat || 0),
+        difficulty: "Easy",
+        isT2DOptimized: isScrapedRecipeT2DOptimized(scrapedRecipe),
+        ingredients: scrapedRecipe.ingredients,
+        instructions: scrapedRecipe.instructions,
+      };
+
+      const recipe = await storage.createRecipe(recipeData);
+
+      res.status(201).json({
+        recipe,
+        scrapedData: scrapedRecipe,
+      });
+    } catch (error) {
+      handleError(res, error, "Failed to scrape recipe");
     }
   });
 

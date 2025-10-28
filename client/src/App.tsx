@@ -14,6 +14,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import Dashboard from "@/pages/Dashboard";
 import MealPlanner from "@/pages/MealPlanner";
 import Recipes from "@/pages/Recipes";
+import AdminRecipes from "@/pages/AdminRecipes";
 import LogBG from "@/pages/LogBG";
 import Prescriptions from "@/pages/Prescriptions";
 import Shopping from "@/pages/Shopping";
@@ -30,6 +31,7 @@ function AuthenticatedApp() {
   let PageComponent = Dashboard;
   if (location === "/planner") PageComponent = MealPlanner;
   else if (location === "/recipes") PageComponent = Recipes;
+  else if (location === "/admin/recipes") PageComponent = AdminRecipes;
   else if (location === "/log-bg") PageComponent = LogBG;
   else if (location === "/prescriptions") PageComponent = Prescriptions;
   else if (location === "/shopping") PageComponent = Shopping;

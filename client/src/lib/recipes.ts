@@ -24,3 +24,23 @@ export async function searchRecipes({
   if (error) throw error;
   return data;
 }
+
+/**
+ * Scrape a recipe from a URL and save it to the database
+ */
+export async function scrapeRecipeFromUrl(url: string, userId?: string) {
+  const response = await fetch('/api/recipes/scrape', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ url, userId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to scrape recipe');
+  }
+
+  return response.json();
+}

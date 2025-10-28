@@ -14,10 +14,9 @@ async function seed() {
     id: "test-user-1",
     username: "testuser",
     password: "password123",
-    bgLowThreshold: 70,
-    bgHighThreshold: 180,
-    bgUrgentThreshold: 250,
-    language: "en",
+    locale: "en-US",
+    onboardingCompleted: true,
+    isAdmin: true, // Make the test user an admin
   }).onConflictDoNothing().returning();
 
   console.log("Created test user:", user);
