@@ -66,7 +66,92 @@ export function registerRoutes(app: Express) {
       handleError(res, error, "Failed to fetch BG stats");
     }
   });
+  // ==================== ANALYTICS ROUTES ====================
 
+  // Get comprehensive BG trends and analytics
+  app.get("/api/analytics/bg-trends", async (req: Request, res: Response) => {
+    try {
+      const userId = req.query.userId as string;
+      const days = parseInt(req.query.days as string) || 30;
+
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const trends = await storage.getBGTrends(userId, days);
+      res.json(trends);
+    } catch (error) {
+      handleError(res, error, "Failed to fetch BG trends");
+    }
+  });
+
+  // Get enhanced dashboard data with analytics
+  app.get("/api/dashboard", async (req: Request, res: Response) => {
+    try {
+      const userId = req.query.userId as string;
+      const days = parseInt(req.query.days as string) || 7;
+
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      // Fetch all dashboard data in parallel
+      const [bgStats, adherence, recentReadings, todayMeals, trends] = await Promise.all([
+        storage.getBGStats(userId, days),
+        storage.getPrescriptionAdherence(userId, days),
+        storage.getBGReadings(userId, 10),
+        storage.getMealPlans(
+          userId,
+          new Date(new Date().setHours(0, 0, 0, 0)),
+          new Date(new Date().setHours(23, 59, 59, 999))
+        ),
+        storage.getBGTrends(userId, days),
+      ]);
+
+      res.json({
+        bgStats,
+        adherence,
+        recentReadings,
+        todayMeals,
+        trends,
+      });
+    } catch (error) {
+      handleError(res, error, "Failed to fetch dashboard data");
+    }
+  });
+
+  // Get settings
+  app.get("/api/me/settings", async (req: Request, res: Response) => {
+    try {
+      const userId = req.header("x-user-id") || req.query.userId as string;
+
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const settings = await storage.getSettings(userId);
+      res.json(settings || {});
+    } catch (error) {
+      handleError(res, error, "Failed to fetch settings");
+    }
+  });
+
+  // Update settings
+  app.patch("/api/me/settings", async (req: Request, res: Response) => {
+    try {
+      const userId = req.header("x-user-id") || req.body.userId;
+
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const settings = await storage.updateSettings(userId, req.body);
+      res.json(settings);
+    } catch (error) {
+      handleError(res, error, "Failed to update settings");
+    }
+  });
+  
   // ==================== PRESCRIPTIONS ROUTES ====================
   
   // Get prescriptions for a user
