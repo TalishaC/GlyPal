@@ -372,6 +372,165 @@ export default function AdminRecipes() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Recipe Dialog */}
+      {editingRecipe && (
+        <Dialog open={!!editingRecipe} onOpenChange={(open) => !open && setEditingRecipe(null)}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Edit Recipe</DialogTitle>
+              <DialogDescription>
+                Update recipe details. Changes will be visible to all users.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+
+              try {
+                const res = await fetch(`/api/recipes/${editingRecipe.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    title: formData.get('title'),
+                    time: parseInt(formData.get('time') as string),
+                    servings: parseInt(formData.get('servings') as string),
+                    carbs: formData.get('carbs'),
+                    protein: formData.get('protein'),
+                    fiber: formData.get('fiber'),
+                    satFat: formData.get('satFat'),
+                    difficulty: formData.get('difficulty'),
+                  }),
+                });
+
+                if (!res.ok) throw new Error('Failed to update recipe');
+
+                refetch();
+                setEditingRecipe(null);
+              } catch (err) {
+                alert(err instanceof Error ? err.message : 'Failed to update recipe');
+              }
+            }}>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-title">Title</Label>
+                  <Input
+                    id="edit-title"
+                    name="title"
+                    defaultValue={editingRecipe.title}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-time">Time (minutes)</Label>
+                    <Input
+                      id="edit-time"
+                      name="time"
+                      type="number"
+                      defaultValue={editingRecipe.time}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-servings">Servings</Label>
+                    <Input
+                      id="edit-servings"
+                      name="servings"
+                      type="number"
+                      defaultValue={editingRecipe.servings}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-carbs">Carbs (g)</Label>
+                    <Input
+                      id="edit-carbs"
+                      name="carbs"
+                      type="number"
+                      step="0.1"
+                      defaultValue={editingRecipe.carbs}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-protein">Protein (g)</Label>
+                    <Input
+                      id="edit-protein"
+                      name="protein"
+                      type="number"
+                      step="0.1"
+                      defaultValue={editingRecipe.protein}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-fiber">Fiber (g)</Label>
+                    <Input
+                      id="edit-fiber"
+                      name="fiber"
+                      type="number"
+                      step="0.1"
+                      defaultValue={editingRecipe.fiber}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-satFat">Saturated Fat (g)</Label>
+                    <Input
+                      id="edit-satFat"
+                      name="satFat"
+                      type="number"
+                      step="0.1"
+                      defaultValue={editingRecipe.satFat}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-difficulty">Difficulty</Label>
+                  <select
+                    id="edit-difficulty"
+                    name="difficulty"
+                    defaultValue={editingRecipe.difficulty}
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                    required
+                  >
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                  </select>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingRecipe(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
