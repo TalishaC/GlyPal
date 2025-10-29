@@ -379,15 +379,17 @@ export default function AdminRecipes() {
       {/* Edit Recipe Dialog */}
       {editingRecipe && (
         <Dialog open={!!editingRecipe} onOpenChange={(open) => !open && setEditingRecipe(null)}>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>Edit Recipe</DialogTitle>
-              <DialogDescription>
-                Update recipe details. Changes will be visible to all users.
-              </DialogDescription>
-            </DialogHeader>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] p-0 gap-0 flex flex-col">
+            <div className="p-6 pb-0">
+              <DialogHeader>
+                <DialogTitle>Edit Recipe</DialogTitle>
+                <DialogDescription>
+                  Update recipe details. Changes will be visible to all users.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
 
-            <form onSubmit={async (e) => {
+            <form className="flex flex-col flex-1 overflow-hidden" onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
 
@@ -421,8 +423,8 @@ export default function AdminRecipes() {
                 alert(err instanceof Error ? err.message : 'Failed to update recipe');
               }
             }}>
-              <ScrollArea className="max-h-[calc(90vh-200px)] pr-4">
-                <div className="grid gap-4 py-4">
+              <div className="flex-1 overflow-y-auto px-6 py-4" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+                <div className="grid gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-title">Title</Label>
                   <Input
@@ -557,9 +559,10 @@ export default function AdminRecipes() {
                   />
                 </div>
               </div>
-              </ScrollArea>
+              </div>
 
-              <DialogFooter className="mt-4">
+              <div className="border-t p-6 pt-4 bg-background">
+                <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
@@ -570,7 +573,8 @@ export default function AdminRecipes() {
                 <Button type="submit">
                   Save Changes
                 </Button>
-              </DialogFooter>
+                </DialogFooter>
+              </div>
             </form>
           </DialogContent>
         </Dialog>
