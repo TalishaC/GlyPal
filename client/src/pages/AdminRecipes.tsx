@@ -25,6 +25,8 @@ interface Recipe {
   satFat: string;
   isT2DOptimized: boolean;
   difficulty: string;
+  ingredients?: any;
+  instructions?: any;
 }
 
 export default function AdminRecipes() {
@@ -389,11 +391,15 @@ export default function AdminRecipes() {
               const formData = new FormData(e.currentTarget);
 
               try {
+                const ingredientsText = formData.get('ingredients') as string;
+                const instructionsText = formData.get('instructions') as string;
+
                 const res = await fetch(`/api/recipes/${editingRecipe.id}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     title: formData.get('title'),
+                    image: formData.get('image'),
                     time: parseInt(formData.get('time') as string),
                     servings: parseInt(formData.get('servings') as string),
                     carbs: formData.get('carbs'),
@@ -401,6 +407,8 @@ export default function AdminRecipes() {
                     fiber: formData.get('fiber'),
                     satFat: formData.get('satFat'),
                     difficulty: formData.get('difficulty'),
+                    ingredients: ingredientsText ? ingredientsText.split('\n').filter(line => line.trim()) : [],
+                    instructions: instructionsText ? instructionsText.split('\n').filter(line => line.trim()) : [],
                   }),
                 });
 
@@ -512,6 +520,39 @@ export default function AdminRecipes() {
                     <option value="Medium">Medium</option>
                     <option value="Hard">Hard</option>
                   </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-image">Image URL</Label>
+                  <Input
+                    id="edit-image"
+                    name="image"
+                    type="url"
+                    defaultValue={editingRecipe.image}
+                    placeholder="https://example.com/image.jpg"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-ingredients">Ingredients (one per line)</Label>
+                  <textarea
+                    id="edit-ingredients"
+                    name="ingredients"
+                    defaultValue={Array.isArray(editingRecipe.ingredients) ? editingRecipe.ingredients.join('\n') : ''}
+                    className="w-full min-h-[100px] px-3 py-2 rounded-md border border-input bg-background"
+                    placeholder="2 cups flour&#10;1 cup sugar&#10;3 eggs"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-instructions">Instructions (one per line)</Label>
+                  <textarea
+                    id="edit-instructions"
+                    name="instructions"
+                    defaultValue={Array.isArray(editingRecipe.instructions) ? editingRecipe.instructions.join('\n') : ''}
+                    className="w-full min-h-[150px] px-3 py-2 rounded-md border border-input bg-background"
+                    placeholder="Preheat oven to 350°F&#10;Mix dry ingredients&#10;Bake for 30 minutes"
+                  />
                 </div>
               </div>
 

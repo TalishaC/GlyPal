@@ -1,5 +1,6 @@
 import { RecipeCard } from "@/components/RecipeCard";
 import { AddRecipeDialog } from "@/components/AddRecipeDialog";
+import { RecipeDetailDialog } from "@/components/RecipeDetailDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Filter, Plus } from "lucide-react";
@@ -24,6 +25,8 @@ interface Recipe {
 export default function Recipes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
 
   const { data: recipes = [], isLoading, refetch } = useQuery<Recipe[]>({
     queryKey: ['/api/recipes/search', searchQuery],
@@ -44,6 +47,26 @@ export default function Recipes() {
     const query = formData.get("query") as string;
     if (query.trim()) {
       setSearchQuery(query.trim());
+    }
+  };
+
+  const handleRecipeClick = async (recipeId: string) => {
+    try {
+      const response = await fetch(`/api/recipes/${recipeId}`);
+      if (!response.ok) throw new Error('Failed to fetch recipe');
+      const recipe = await response.json();
+      // Map the recipe to match RecipeDetailDialog interface
+      setSelectedRecipe({
+        ...recipe,
+        time: recipe.time || recipe.readyInMinutes || 0,
+        carbs: parseFloat(String(recipe.carbs || 0)),
+        protein: parseFloat(String(recipe.protein || 0)),
+        fiber: parseFloat(String(recipe.fiber || 0)),
+        satFat: recipe.satFat ? parseFloat(String(recipe.satFat)) : undefined,
+      });
+      setShowDetailDialog(true);
+    } catch (error) {
+      console.error('Error fetching recipe:', error);
     }
   };
 
@@ -102,7 +125,7 @@ export default function Recipes() {
               fiber={recipe.fiber}
               difficulty="Easy"
               isT2DOptimized={recipe.isT2DOptimized}
-              onClick={() => console.log(`View recipe ${recipe.id} from ${recipe.source}`)}
+              onClick={() => handleRecipeClick(recipe.id)}
             />
           ))}
         </div>
@@ -112,6 +135,12 @@ export default function Recipes() {
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
         onSuccess={() => refetch()}
+      />
+
+      <RecipeDetailDialog
+        recipe={selectedRecipe}
+        open={showDetailDialog}
+        onOpenChange={setShowDetailDialog}
       />
     </div>
   );
