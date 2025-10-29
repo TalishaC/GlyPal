@@ -356,12 +356,35 @@ export function registerRoutes(app: Express) {
   app.get("/api/recipes/:id", async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const recipe = await storage.getRecipe(id);
-      
+      let recipe = await storage.getRecipe(id);
+
       if (!recipe) {
         return res.status(404).json({ error: "Recipe not found" });
       }
-      
+
+      // If it's a Spoonacular recipe without ingredients/instructions, fetch full details
+      const needsFullDetails = recipe.spoonacularId &&
+        (!recipe.ingredients || (Array.isArray(recipe.ingredients) && recipe.ingredients.length === 0));
+
+      if (needsFullDetails && recipe.spoonacularId) {
+        console.log(`Fetching full details for Spoonacular recipe ${recipe.spoonacularId}`);
+        try {
+          const { extractIngredients, extractInstructions } = await import("./spoonacular");
+          const fullRecipe = await getRecipeDetails(recipe.spoonacularId!);
+
+          // Update the recipe with full details
+          const updatedRecipe = await storage.updateRecipe(id, {
+            ingredients: extractIngredients(fullRecipe),
+            instructions: extractInstructions(fullRecipe),
+          });
+
+          recipe = updatedRecipe || recipe;
+        } catch (error) {
+          console.error("Failed to fetch full Spoonacular details:", error);
+          // Continue with existing recipe data
+        }
+      }
+
       res.json(recipe);
     } catch (error) {
       handleError(res, error, "Failed to fetch recipe");

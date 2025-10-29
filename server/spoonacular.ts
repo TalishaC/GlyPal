@@ -14,6 +14,16 @@ interface SpoonacularRecipe {
       unit: string;
     }>;
   };
+  extendedIngredients?: Array<{
+    original: string;
+    name: string;
+  }>;
+  analyzedInstructions?: Array<{
+    steps: Array<{
+      number: number;
+      step: string;
+    }>;
+  }>;
 }
 
 interface SpoonacularSearchResponse {
@@ -110,4 +120,26 @@ export function isT2DOptimized(nutrition: ReturnType<typeof extractNutritionInfo
     nutrition.protein >= 14 &&
     nutrition.saturatedFat < 11
   );
+}
+
+export function extractIngredients(recipe: SpoonacularRecipe): string[] {
+  if (!recipe.extendedIngredients || recipe.extendedIngredients.length === 0) {
+    return [];
+  }
+  return recipe.extendedIngredients.map(ing => ing.original);
+}
+
+export function extractInstructions(recipe: SpoonacularRecipe): string[] {
+  if (!recipe.analyzedInstructions || recipe.analyzedInstructions.length === 0) {
+    return [];
+  }
+
+  const allSteps: string[] = [];
+  recipe.analyzedInstructions.forEach(instruction => {
+    instruction.steps.forEach(step => {
+      allSteps.push(step.step);
+    });
+  });
+
+  return allSteps;
 }
