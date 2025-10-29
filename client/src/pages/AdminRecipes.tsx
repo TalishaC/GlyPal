@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Loader2, CheckCircle2, ExternalLink, Shield, Users, Lock, Pencil, Trash2 } from "lucide-react";
 import { scrapeRecipeFromUrl } from "@/lib/recipes";
 
@@ -378,7 +379,7 @@ export default function AdminRecipes() {
       {/* Edit Recipe Dialog */}
       {editingRecipe && (
         <Dialog open={!!editingRecipe} onOpenChange={(open) => !open && setEditingRecipe(null)}>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Edit Recipe</DialogTitle>
               <DialogDescription>
@@ -420,7 +421,8 @@ export default function AdminRecipes() {
                 alert(err instanceof Error ? err.message : 'Failed to update recipe');
               }
             }}>
-              <div className="grid gap-4 py-4">
+              <ScrollArea className="max-h-[calc(90vh-200px)] pr-4">
+                <div className="grid gap-4 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-title">Title</Label>
                   <Input
@@ -555,8 +557,9 @@ export default function AdminRecipes() {
                   />
                 </div>
               </div>
+              </ScrollArea>
 
-              <DialogFooter>
+              <DialogFooter className="mt-4">
                 <Button
                   type="button"
                   variant="outline"
